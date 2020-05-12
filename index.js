@@ -5,6 +5,12 @@ const fs = require( 'fs' );
 const archiver = require( 'archiver' );
 
 class DirArchiver {
+    /**
+     * The constructor. 
+     * @param {string} directoryPath - the path of the folder to archive.
+     * @param {string} zipPath - The path of the zip file to create.
+     * @param {array} excludes - The name of the files and foldes to exclude.
+     */
     constructor(directoryPath, zipPath, excludes){
 
         // Contains the excluded files and folders.
