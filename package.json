@@ -1,0 +1,35 @@
+{
+  "name": "dir-archiver",
+  "version": "1.0.0",
+  "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
+  "license": "MIT",
+  "main": "index.js",
+  "files": [
+    "LICENSE",
+    "index.js"
+  ],
+  "keywords": [
+    "zip",
+    "compression",
+    "archive",
+    "archiver",
+    "archiver",
+    "folder",
+    "directory",
+    "dir"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ismail-elkorchi/dir-archiver.git"
+  },
+  "author": {
+    "name": "Ismail El Korchi",
+    "email": "ismail.elkorchi@gmail.com",
+    "url": "https://ismailelkorchi.com"
+  },
+  "bugs": "https://github.com/Ismail-elkorchi/dir-archiver/issues",
+  "homepage": "https://github.com/Ismail-elkorchi/dir-archiver",
+  "dependencies": {
+    "archiver": "^4.0.1"
+  }
+}
