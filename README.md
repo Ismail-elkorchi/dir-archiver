@@ -4,7 +4,7 @@ Compress a whole directory (including subdirectories) into a zip file, with opt
 # Installation
 
 ```sh
-$ npm install new-normalize
+$ npm install dir-archiver
 ```
 
 # Usage
