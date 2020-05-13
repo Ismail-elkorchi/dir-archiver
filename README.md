@@ -1,5 +1,5 @@
 [![npm][npm-image]][npm-url] [![license][license-image]][license-url]
-[![changelog][changelog-image]][changelog-url] [![travis][travis-image]][travis-url]
+[![changelog][changelog-image]][changelog-url]
 
 # Dir Archiver
 Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.
