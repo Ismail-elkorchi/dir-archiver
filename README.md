@@ -12,6 +12,8 @@ $ npm install dir-archiver
 
 # Usage
 
+## API
+
 ```javascript
 // Require modules.
 var DirArchiver = require('dir-archiver');
@@ -21,7 +23,7 @@ const excludes = ['directory_name', 'file.extension'];
 
 /**
  * Create a dir-archiver object. 
- * @param {string} directoryPath - the path of the folder to archive.
+ * @param {string} directoryPath - The path of the folder to archive.
  * @param {string} zipPath - The path of the zip file to create.
  * @param {array} excludes - A list with the names of the files and folders to exclude.
 */
@@ -30,6 +32,19 @@ var archive = new DirArchiver('path/to/directory', 'path/to/desination/zipfile.z
 // Create the zip file.
 archive.createZip();
 ```
+## Command Line Interface
+
+```sh
+Usage: dir-archiver --src <path-to-directory> --dest <path-to-file>.zip --exclude folder-name file-name.extention
+
+Options:
+  --src      The path of the folder to archive.
+  --dest     The path of the zip file to create.
+  --exclude  Specify a list with the names of the files and folders to exclude
+```
+
+
+
 [changelog-image]: https://img.shields.io/badge/changelog-md-blue.svg?style=flat-square
 [changelog-url]: CHANGELOG.md
 [license-image]: https://img.shields.io/npm/l/dir-archiver.svg?style=flat-square
