@@ -4,6 +4,9 @@
   "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
   "license": "MIT",
   "main": "index.js",
+  "bin": {
+    "dir-archiver": "cli.js"
+  },
   "files": [
     "LICENSE",
     "index.js"
