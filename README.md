@@ -1,3 +1,6 @@
+[![npm][npm-image]][npm-url] [![license][license-image]][license-url]
+[![changelog][changelog-image]][changelog-url] [![travis][travis-image]][travis-url]
+
 # Dir Archiver
 Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.
 
@@ -27,3 +30,9 @@ var archive = new DirArchiver('path/to/directory', 'path/to/desination/zipfile.z
 // Create the zip file.
 archive.createZip();
 ```
+[changelog-image]: https://img.shields.io/badge/changelog-md-blue.svg?style=flat-square
+[changelog-url]: CHANGELOG.md
+[license-image]: https://img.shields.io/npm/l/dir-archiver.svg?style=flat-square
+[license-url]: LICENSE
+[npm-image]: https://img.shields.io/npm/v/dir-archiver.svg?style=flat-square
+[npm-url]: https://www.npmjs.com/package/dir-archiver
