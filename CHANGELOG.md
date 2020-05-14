@@ -1,5 +1,9 @@
 # Changes to Dir Archiver
 
+### 1.1.1 (May 14, 2020)
+
+* CLI : prevent execution if the required arguments are missing.
+
 ### 1.1.0 (May 13, 2020)
 
 * Add cli script.
