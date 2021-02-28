@@ -1,5 +1,11 @@
 # Changes to Dir Archiver
 
+### 1.2.0 (February 28, 2021)
+
+* Bump archiver from 4.0.2 to 5.2.0.
+* Make exclude paths relative to run directory ([#4](https://github.com/Ismail-elkorchi/dir-archiver/pull/4))
+* Remove the destination zip if it exists already ([#7](https://github.com/Ismail-elkorchi/dir-archiver/pull/7))
+
 ### 1.1.2 (July 21, 2020)
 
 * Bump lodash from 4.17.15 to 4.17.19.
