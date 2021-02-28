@@ -55,6 +55,11 @@ class DirArchiver {
     }
 
     createZip (){
+        // Remove the destination zip if it exists.
+        // see : https://github.com/Ismail-elkorchi/dir-archiver/issues/5
+        if(fs.existsSync(this.zipPath)){
+            fs.unlinkSync(this.zipPath);
+        }
         // Create a file to stream archive data to.
         this.output = fs.createWriteStream( this.zipPath );
         this.archive = archiver('zip', {
