@@ -31,11 +31,11 @@ class DirArchiver {
             const currentPath = directoryPath + '/' + files[i];
             const stats = fs.statSync( currentPath );
             let relativePath = path.relative(process.cwd(), currentPath);
-            if ( stats.isFile() && ! this.excludes.includes( files[i] ) ) {
+            if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
                 this.archive.file(currentPath, {
                     name: `${relativePath}`
                 });
-            } else if ( stats.isDirectory() && ! this.excludes.includes( files[i] ) ) {
+            } else if ( stats.isDirectory() && ! this.excludes.includes( relativePath ) ) {
                 this.traverseDirectoryTree( currentPath );
             }
         }
