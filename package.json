@@ -32,6 +32,6 @@
   "bugs": "https://github.com/Ismail-elkorchi/dir-archiver/issues",
   "homepage": "https://github.com/Ismail-elkorchi/dir-archiver",
   "dependencies": {
-    "archiver": "^4.0.2"
+    "archiver": "^5.2.0"
   }
 }
