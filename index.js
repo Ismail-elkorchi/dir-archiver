@@ -9,9 +9,10 @@ class DirArchiver {
      * The constructor. 
      * @param {string} directoryPath - the path of the folder to archive.
      * @param {string} zipPath - The path of the zip file to create.
+     * @param {Boolean} includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project, setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
      * @param {array} excludes - The name of the files and foldes to exclude.
      */
-    constructor(directoryPath, zipPath, excludes){
+    constructor(directoryPath, zipPath, includeBaseDirectory = true, excludes){
 
         // Contains the excluded files and folders.
         this.excludes = excludes;
@@ -19,6 +20,10 @@ class DirArchiver {
         this.directoryPath = directoryPath;
 
         this.zipPath = zipPath;
+
+        this.includeBaseDirectory = includeBaseDirectory;
+
+        this.baseDirectory = path.basename(path.resolve(directoryPath));
     }
 
     /**
@@ -32,9 +37,15 @@ class DirArchiver {
             const stats = fs.statSync( currentPath );
             let relativePath = path.relative(process.cwd(), currentPath);
             if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
-                this.archive.file(currentPath, {
-                    name: `${relativePath}`
-                });
+                if( this.includeBaseDirectory === true) {
+                    this.archive.file(currentPath, {
+                        name: `${this.baseDirectory}/${relativePath}`
+                    });
+                } else {
+                    this.archive.file(currentPath, {
+                        name: `${relativePath}`
+                    });
+                }
             } else if ( stats.isDirectory() && ! this.excludes.includes( relativePath ) ) {
                 this.traverseDirectoryTree( currentPath );
             }
