@@ -40,7 +40,7 @@ archive.createZip();
 ## Command Line Interface
 
 ```sh
-Usage: dir-archiver --src <path-to-directory> --dest <path-to-file>.zip --exclude folder-name file-name.extention
+Usage: dir-archiver --src <path-to-directory> --dest <path-to-file>.zip --includebasedir true|false --exclude folder-name file-name.extention
 
 Options:
   --src             The path of the folder to archive.
