@@ -9,7 +9,7 @@ class DirArchiver {
      * The constructor. 
      * @param {string} directoryPath - the path of the folder to archive.
      * @param {string} zipPath - The path of the zip file to create.
-     * @param {Boolean} includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project, setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
+     * @param {Boolean} includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project", setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
      * @param {array} excludes - The name of the files and foldes to exclude.
      */
     constructor(directoryPath, zipPath, includeBaseDirectory = true, excludes){
