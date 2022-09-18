@@ -32,7 +32,7 @@ for ( argumentIndex in arguments ) {
         zipPath = arguments[parseInt(argumentIndex) + 1];
     }
     if( arguments[argumentIndex] === '--includebasedir' ) {
-        includeBaseDirectory = arguments[parseInt(argumentIndex) + 1];
+        includeBaseDirectory = ( arguments[parseInt(argumentIndex) + 1] === 'true' );
     }
     if( afterExclude === true ) {
         excludes.push( arguments[argumentIndex] );
