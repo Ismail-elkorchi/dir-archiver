@@ -1,10 +1,15 @@
 # Changes to Dir Archiver
 
+### 2.0.0 (September 20, 2022)
+
+* Bump archiver from 5.2.0 to 5.3.1 ([42c30b7](https://github.com/Ismail-elkorchi/dir-archiver/commit/42c30b7a3b7fa0b3101e21559f1774f45d2f06ce)).
+* Add an option to include the base directory in the archive root ([#11](https://github.com/Ismail-elkorchi/dir-archiver/pull/11)).
+
 ### 1.2.0 (February 28, 2021)
 
-* Bump archiver from 4.0.2 to 5.2.0.
-* Make exclude paths relative to run directory ([#4](https://github.com/Ismail-elkorchi/dir-archiver/pull/4))
-* Remove the destination zip if it exists already ([#7](https://github.com/Ismail-elkorchi/dir-archiver/pull/7))
+* Bump archiver from 4.0.2 to 5.2.0 ([b84c347](https://github.com/Ismail-elkorchi/dir-archiver/commit/b84c34731617c57b7c439f15910fcc8fa00747b2)).
+* Make exclude paths relative to run directory ([#4](https://github.com/Ismail-elkorchi/dir-archiver/pull/4)).
+* Remove the destination zip if it exists already ([#7](https://github.com/Ismail-elkorchi/dir-archiver/pull/7)).
 
 ### 1.1.2 (July 21, 2020)
 

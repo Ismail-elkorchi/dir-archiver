@@ -1,6 +1,6 @@
 {
   "name": "dir-archiver",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
   "license": "MIT",
   "main": "index.js",
