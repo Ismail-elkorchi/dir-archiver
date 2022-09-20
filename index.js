@@ -12,7 +12,7 @@ class DirArchiver {
      * @param {Boolean} includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project", setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
      * @param {array} excludes - The name of the files and foldes to exclude.
      */
-    constructor(directoryPath, zipPath, includeBaseDirectory = true, excludes){
+    constructor(directoryPath, zipPath, includeBaseDirectory, excludes){
 
         // Contains the excluded files and folders.
         this.excludes = excludes;
