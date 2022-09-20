@@ -16,8 +16,8 @@ if ( ! arguments.includes( '--src' ) || ! arguments.includes( '--dest' ) ) {
       --dest           The path of the zip file to create.                           [string][required]
       --includebasedir Includes a base directory at the root of the archive.
                        For example, if the root folder of your project is named
-                       "your-project", setting includeBaseDirectory to true will
-                       create an archive that includes this base directory.
+                       "your-project", setting this option to true will create
+                       an archive that includes this base directory.
                        If this option is set to false the archive created will
                        unzip its content to the current directory.                               [bool]
       --exclude        A list with the names of the files and folders to exclude.               [array]`);
