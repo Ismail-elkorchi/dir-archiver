@@ -33,17 +33,17 @@ class DirArchiver {
     traverseDirectoryTree( directoryPath ) {
         const files = fs.readdirSync( directoryPath );
         for ( const i in files ) {
-            const currentPath = directoryPath + '/' + files[i];
+            const currentPath = path.join( path.resolve( directoryPath ), files[i] );
             const stats = fs.statSync( currentPath );
             let relativePath = path.relative(process.cwd(), currentPath);
             if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
                 if( this.includeBaseDirectory === true) {
                     this.archive.file(currentPath, {
-                        name: `${this.baseDirectory}/${relativePath}`
+                        name: path.join( this.baseDirectory, relativePath )
                     });
                 } else {
                     this.archive.file(currentPath, {
-                        name: `${relativePath}`
+                        name: relativePath
                     });
                 }
             } else if ( stats.isDirectory() && ! this.excludes.includes( relativePath ) ) {
