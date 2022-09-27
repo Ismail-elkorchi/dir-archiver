@@ -48,5 +48,25 @@ module.exports = {
 		'space-infix-ops': [
 			'error'
 		],
+		'array-bracket-spacing': [
+			'error',
+			'always'
+		],
+		'arrow-spacing': [
+			'error',
+			{ 'before': true, 'after': true }
+		],
+		'block-spacing': [
+			'error',
+			'always'
+		],
+		'keyword-spacing': [
+			'error',
+			{ 'before': true, 'after': true }
+		],
+		'object-curly-spacing': [
+			'error',
+			'always'
+		]
 	}
 };
