@@ -15,7 +15,9 @@ class DirArchiver {
     constructor(directoryPath, zipPath, includeBaseDirectory, excludes){
 
         // Contains the excluded files and folders.
-        this.excludes = excludes;
+        this.excludes = excludes.map( ( element ) => {
+            return path.normalize( element );
+        });
 
         this.directoryPath = path.resolve(directoryPath);
 
