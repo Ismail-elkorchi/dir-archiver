@@ -26,6 +26,27 @@ module.exports = {
 		'semi': [
 			'error',
 			'always'
-		]
+		],
+		'spaced-comment': [
+			'error',
+			'always'
+		],
+		'no-multi-spaces': [
+			'error'
+		],
+		'no-trailing-spaces': [
+			'error'
+		],
+		'space-before-blocks': [
+			'error',
+			'always'
+		],
+		'space-in-parens': [
+			'error',
+			'always'
+		],
+		'space-infix-ops': [
+			'error'
+		],
 	}
 };
