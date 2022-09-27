@@ -31,6 +31,10 @@
   },
   "bugs": "https://github.com/Ismail-elkorchi/dir-archiver/issues",
   "homepage": "https://github.com/Ismail-elkorchi/dir-archiver",
+  "scripts": {
+    "lint": "eslint cli.js index.js",
+    "lint:fix": "eslint --fix cli.js index.js"
+  },
   "dependencies": {
     "archiver": "^5.3.1"
   },
