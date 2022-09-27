@@ -35,7 +35,7 @@ class DirArchiver {
         for ( const i in files ) {
             const currentPath = path.join( path.resolve( directoryPath ), files[i] );
             const stats = fs.statSync( currentPath );
-            let relativePath = path.relative(process.cwd(), currentPath);
+            let relativePath = path.relative( this.directoryPath, currentPath );
             if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
                 if( this.includeBaseDirectory === true) {
                     this.archive.file(currentPath, {
