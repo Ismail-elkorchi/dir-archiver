@@ -24,7 +24,7 @@ if ( ! arguments.includes( '--src' ) || ! arguments.includes( '--dest' ) ) {
 	process.exit();
 }
 
-for ( argumentIndex in arguments ) {
+for ( const argumentIndex in arguments ) {
 	if ( arguments[argumentIndex] === '--src' ) {
 		directoryPath = arguments[parseInt( argumentIndex ) + 1];
 	}
