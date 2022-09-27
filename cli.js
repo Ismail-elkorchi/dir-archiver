@@ -21,7 +21,7 @@ if ( ! arguments.includes( '--src' ) || ! arguments.includes( '--dest' ) ) {
                        If this option is set to false the archive created will
                        unzip its content to the current directory.                               [bool]
       --exclude        A list with the names of the files and folders to exclude.               [array]` );
-	process.exit();
+	process.exit(); // eslint-disable-line n/no-process-exit
 }
 
 for ( const argumentIndex in arguments ) {
