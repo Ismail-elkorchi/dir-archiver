@@ -17,13 +17,13 @@ class DirArchiver {
         // Contains the excluded files and folders.
         this.excludes = excludes;
 
-        this.directoryPath = directoryPath;
+        this.directoryPath = path.resolve(directoryPath);
 
-        this.zipPath = zipPath;
+        this.zipPath = path.resolve( zipPath );
 
         this.includeBaseDirectory = includeBaseDirectory;
 
-        this.baseDirectory = path.basename(path.resolve(directoryPath));
+        this.baseDirectory = path.basename( this.directoryPath );
     }
 
     /**
@@ -105,7 +105,7 @@ class DirArchiver {
         const self = this;
         // Listen for all archive data to be written.
         this.output.on( 'close', function () {
-            console.log( `Created ${path.resolve( self.zipPath )} of ${self.prettyBytes(self.archive.pointer())}` );
+            console.log( `Created ${self.zipPath} of ${self.prettyBytes(self.archive.pointer())}` );
         });
     }
 }
