@@ -2,13 +2,13 @@
 
 var DirArchiver = require( './index' );
 
-const arguments = process.argv;
+const processArguments = process.argv;
 var directoryPath = '';
 var zipPath = '';
 var includeBaseDirectory = true;
 var excludes = [];
 
-if ( ! arguments.includes( '--src' ) || ! arguments.includes( '--dest' ) ) {
+if ( ! processArguments.includes( '--src' ) || ! processArguments.includes( '--dest' ) ) {
 	console.log( ` Dir Archiver could not be executed. Some arguments are missing.
 
     Options:
@@ -24,20 +24,20 @@ if ( ! arguments.includes( '--src' ) || ! arguments.includes( '--dest' ) ) {
 	process.exit(); // eslint-disable-line n/no-process-exit
 }
 
-for ( const argumentIndex in arguments ) {
-	if ( arguments[argumentIndex] === '--src' ) {
-		directoryPath = arguments[parseInt( argumentIndex ) + 1];
+for ( const argumentIndex in processArguments ) {
+	if ( processArguments[argumentIndex] === '--src' ) {
+		directoryPath = processArguments[parseInt( argumentIndex ) + 1];
 	}
-	if ( arguments[argumentIndex] === '--dest' ) {
-		zipPath = arguments[parseInt( argumentIndex ) + 1];
+	if ( processArguments[argumentIndex] === '--dest' ) {
+		zipPath = processArguments[parseInt( argumentIndex ) + 1];
 	}
-	if ( arguments[argumentIndex] === '--includebasedir' ) {
-		includeBaseDirectory = ( arguments[parseInt( argumentIndex ) + 1] === 'true' );
+	if ( processArguments[argumentIndex] === '--includebasedir' ) {
+		includeBaseDirectory = ( processArguments[parseInt( argumentIndex ) + 1] === 'true' );
 	}
 	if ( afterExclude === true ) {
-		excludes.push( arguments[argumentIndex] );
+		excludes.push( processArguments[argumentIndex] );
 	}
-	if ( arguments[argumentIndex] === '--exclude' ) {
+	if ( processArguments[argumentIndex] === '--exclude' ) {
 		var afterExclude = true;
 	}
 }
