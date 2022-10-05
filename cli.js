@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-var DirArchiver = require( './index' );
+import DirArchiver from './index.js';
 
 const processArguments = process.argv;
 var directoryPath = '';

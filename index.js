@@ -1,8 +1,8 @@
 'use strict';
 
-const path = require( 'path' );
-const fs = require( 'fs' );
-const archiver = require( 'archiver' );
+import { normalize, resolve, basename, join, relative } from 'path';
+import { readdirSync, statSync, existsSync, unlinkSync, createWriteStream } from 'fs';
+import archiver from 'archiver';
 
 class DirArchiver {
 	/**
@@ -16,16 +16,16 @@ class DirArchiver {
 
 		// Contains the excluded files and folders.
 		this.excludes = excludes.map( ( element ) => {
-			return path.normalize( element );
+			return normalize( element );
 		} );
 
-		this.directoryPath = path.resolve( directoryPath );
+		this.directoryPath = resolve( directoryPath );
 
-		this.zipPath = path.resolve( zipPath );
+		this.zipPath = resolve( zipPath );
 
 		this.includeBaseDirectory = includeBaseDirectory;
 
-		this.baseDirectory = path.basename( this.directoryPath );
+		this.baseDirectory = basename( this.directoryPath );
 	}
 
 	/**
@@ -33,15 +33,15 @@ class DirArchiver {
 	 * @param {string} directoryPath - The path of the directory being looped through.
 	 */
 	traverseDirectoryTree( directoryPath ) {
-		const files = fs.readdirSync( directoryPath );
+		const files = readdirSync( directoryPath );
 		for ( const i in files ) {
-			const currentPath = path.join( path.resolve( directoryPath ), files[ i ] );
-			const stats = fs.statSync( currentPath );
-			let relativePath = path.relative( this.directoryPath, currentPath );
+			const currentPath = join( resolve( directoryPath ), files[ i ] );
+			const stats = statSync( currentPath );
+			let relativePath = relative( this.directoryPath, currentPath );
 			if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
 				if ( this.includeBaseDirectory === true ) {
 					this.archive.file( currentPath, {
-						name: path.join( this.baseDirectory, relativePath )
+						name: join( this.baseDirectory, relativePath )
 					} );
 				} else {
 					this.archive.file( currentPath, {
@@ -70,11 +70,11 @@ class DirArchiver {
 	createZip () {
 		// Remove the destination zip if it exists.
 		// see : https://github.com/Ismail-elkorchi/dir-archiver/issues/5
-		if ( fs.existsSync( this.zipPath ) ) {
-			fs.unlinkSync( this.zipPath );
+		if ( existsSync( this.zipPath ) ) {
+			unlinkSync( this.zipPath );
 		}
 		// Create a file to stream archive data to.
-		this.output = fs.createWriteStream( this.zipPath );
+		this.output = createWriteStream( this.zipPath );
 		this.archive = archiver( 'zip', {
 			zlib: { level: 9 }
 		} );
@@ -111,4 +111,4 @@ class DirArchiver {
 		} );
 	}
 }
-module.exports = DirArchiver;
+export default DirArchiver;
