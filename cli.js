@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-var DirArchiver = require( './index' );
+const DirArchiver = require( './index' );
+const parseArgs = require( 'argv-flags' );
 
-const processArguments = process.argv;
-var directoryPath = '';
-var zipPath = '';
-var includeBaseDirectory = true;
-var excludes = [];
+const directoryPath = parseArgs( '--src', 'string' );
+const zipPath = parseArgs( '--dest', 'string' );
+const includeBaseDirectory = parseArgs( '--includebasedir', 'boolean' );
+const excludes = parseArgs( '--exclude', 'array' ) || [];
 
-if ( ! processArguments.includes( '--src' ) || ! processArguments.includes( '--dest' ) ) {
+if ( directoryPath === false || zipPath === false ) {
 	console.log( ` Dir Archiver could not be executed. Some arguments are missing.
 
     Options:
@@ -22,24 +22,6 @@ if ( ! processArguments.includes( '--src' ) || ! processArguments.includes( '--d
                        unzip its content to the current directory.                               [bool]
       --exclude        A list with the names of the files and folders to exclude.               [array]` );
 	process.exit(); // eslint-disable-line n/no-process-exit
-}
-
-for ( const argumentIndex in processArguments ) {
-	if ( processArguments[argumentIndex] === '--src' ) {
-		directoryPath = processArguments[parseInt( argumentIndex ) + 1];
-	}
-	if ( processArguments[argumentIndex] === '--dest' ) {
-		zipPath = processArguments[parseInt( argumentIndex ) + 1];
-	}
-	if ( processArguments[argumentIndex] === '--includebasedir' ) {
-		includeBaseDirectory = ( processArguments[parseInt( argumentIndex ) + 1] === 'true' );
-	}
-	if ( afterExclude === true ) {
-		excludes.push( processArguments[argumentIndex] );
-	}
-	if ( processArguments[argumentIndex] === '--exclude' ) {
-		var afterExclude = true;
-	}
 }
 
 const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );

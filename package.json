@@ -37,7 +37,8 @@
     "lint:fix": "eslint --fix cli.js index.js"
   },
   "dependencies": {
-    "archiver": "^5.3.1"
+    "archiver": "^5.3.1",
+    "argv-flags": "^0.1.1"
   },
   "devDependencies": {
     "eslint": "^8.24.0",
