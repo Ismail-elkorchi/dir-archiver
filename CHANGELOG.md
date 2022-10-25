@@ -1,5 +1,10 @@
 # Changes to Dir Archiver
 
+### 2.1.0 (October 25, 2022)
+
+* Add ESLint ([#12](https://github.com/Ismail-elkorchi/dir-archiver/pull/12)).
+* Several enhancements to better support Microsoft Windows ([Diff](https://github.com/Ismail-elkorchi/dir-archiver/compare/2.0.0...v2.1.0)).
+
 ### 2.0.0 (September 20, 2022)
 
 * Bump archiver from 5.2.0 to 5.3.1 ([42c30b7](https://github.com/Ismail-elkorchi/dir-archiver/commit/42c30b7a3b7fa0b3101e21559f1774f45d2f06ce)).
