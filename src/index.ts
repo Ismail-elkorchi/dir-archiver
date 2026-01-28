@@ -57,57 +57,66 @@ class DirArchiver {
 	 * @param directoryPath - The path of the directory being looped through.
 	 */
 	private traverseDirectoryTree( directoryPath: string ): void {
-		if ( this.followSymlinks ) {
-			try {
-				const realPath = fs.realpathSync( directoryPath );
-				if ( this.visitedDirectories.has( realPath ) ) {
-					return;
-				}
-				this.visitedDirectories.add( realPath );
-			} catch {
-				return;
-			}
-		}
+		const directoriesToVisit: string[] = [ directoryPath ];
 
-		const resolvedDirectoryPath = path.resolve( directoryPath );
-		const files = fs.readdirSync( resolvedDirectoryPath );
-		for ( const file of files ) {
-			const currentPath = path.join( resolvedDirectoryPath, file );
-			if ( currentPath === this.zipPath ) {
+		while ( directoriesToVisit.length > 0 ) {
+			const nextDirectory = directoriesToVisit.pop();
+			if ( ! nextDirectory ) {
 				continue;
 			}
-			const relativePath = path.relative( this.directoryPath, currentPath );
-			const normalizedRelativePath = path.normalize( relativePath );
-			if ( this.excludedPaths.has( normalizedRelativePath ) ) {
-				continue;
-			}
-			let stats: fs.Stats;
-			try {
-				const lstats = fs.lstatSync( currentPath );
-				if ( lstats.isSymbolicLink() ) {
-					if ( ! this.followSymlinks ) {
+
+			if ( this.followSymlinks ) {
+				try {
+					const realPath = fs.realpathSync( nextDirectory );
+					if ( this.visitedDirectories.has( realPath ) ) {
 						continue;
 					}
-					stats = fs.statSync( currentPath );
-				} else {
-					stats = lstats;
+					this.visitedDirectories.add( realPath );
+				} catch {
+					continue;
 				}
-			} catch {
-				continue;
 			}
 
-			if ( stats.isFile() ) {
-				if ( this.includeBaseDirectory ) {
-					this.archive.file( currentPath, {
-						name: path.join( this.baseDirectory, normalizedRelativePath )
-					} );
-				} else {
-					this.archive.file( currentPath, {
-						name: normalizedRelativePath
-					} );
+			const resolvedDirectoryPath = path.resolve( nextDirectory );
+			const files = fs.readdirSync( resolvedDirectoryPath );
+			for ( const file of files ) {
+				const currentPath = path.join( resolvedDirectoryPath, file );
+				if ( currentPath === this.zipPath ) {
+					continue;
 				}
-			} else if ( stats.isDirectory() ) {
-				this.traverseDirectoryTree( currentPath );
+				const relativePath = path.relative( this.directoryPath, currentPath );
+				const normalizedRelativePath = path.normalize( relativePath );
+				if ( this.excludedPaths.has( normalizedRelativePath ) ) {
+					continue;
+				}
+				let stats: fs.Stats;
+				try {
+					const lstats = fs.lstatSync( currentPath );
+					if ( lstats.isSymbolicLink() ) {
+						if ( ! this.followSymlinks ) {
+							continue;
+						}
+						stats = fs.statSync( currentPath );
+					} else {
+						stats = lstats;
+					}
+				} catch {
+					continue;
+				}
+
+				if ( stats.isFile() ) {
+					if ( this.includeBaseDirectory ) {
+						this.archive.file( currentPath, {
+							name: path.join( this.baseDirectory, normalizedRelativePath )
+						} );
+					} else {
+						this.archive.file( currentPath, {
+							name: normalizedRelativePath
+						} );
+					}
+				} else if ( stats.isDirectory() ) {
+					directoriesToVisit.push( currentPath );
+				}
 			}
 		}
 	}
