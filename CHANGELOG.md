@@ -1,6 +1,6 @@
 # Changes to Dir Archiver
 
-### 2.2.0 (Unreleased)
+### 2.2.0 (January 28, 2026)
 
 * Migrate source to TypeScript with strict compiler options.
 * Build compiled output into `dist/` with declaration files.
@@ -17,7 +17,6 @@
 * Traverse entries in deterministic order.
 * Honor explicit true/false values for CLI boolean flags.
 * Improve error handling for archive creation failures.
-* Bump argv-flags to 0.2.0.
 * Bump argv-flags to 0.2.1 (inline flag values).
 
 ### 2.1.2 (January 28, 2026)
