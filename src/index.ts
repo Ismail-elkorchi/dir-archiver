@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import archiver from 'archiver';
 
 class DirArchiver {
-	private excludes: string[];
+	private excludedPaths: Set<string>;
 	private directoryPath: string;
 	private zipPath: string;
 	private includeBaseDirectory: boolean;
@@ -30,9 +30,10 @@ class DirArchiver {
 		followSymlinks = false
 	) {
 		// Contains the excluded files and folders.
-		this.excludes = excludes.map( ( element ) => {
+		const normalizedExcludes = excludes.map( ( element ) => {
 			return path.normalize( element );
 		} );
+		this.excludedPaths = new Set( normalizedExcludes );
 
 		this.directoryPath = path.resolve( directoryPath );
 		this.zipPath = path.resolve( zipPath );
@@ -47,9 +48,7 @@ class DirArchiver {
 			&& ! path.isAbsolute( relativeZipPath );
 		if ( isZipInsideSource ) {
 			const normalizedZipPath = path.normalize( relativeZipPath );
-			if ( ! this.excludes.includes( normalizedZipPath ) ) {
-				this.excludes.push( normalizedZipPath );
-			}
+			this.excludedPaths.add( normalizedZipPath );
 		}
 	}
 
@@ -70,14 +69,16 @@ class DirArchiver {
 			}
 		}
 
-		const files = fs.readdirSync( directoryPath );
+		const resolvedDirectoryPath = path.resolve( directoryPath );
+		const files = fs.readdirSync( resolvedDirectoryPath );
 		for ( const file of files ) {
-			const currentPath = path.join( path.resolve( directoryPath ), file );
-			if ( path.resolve( currentPath ) === this.zipPath ) {
+			const currentPath = path.join( resolvedDirectoryPath, file );
+			if ( currentPath === this.zipPath ) {
 				continue;
 			}
 			const relativePath = path.relative( this.directoryPath, currentPath );
-			if ( this.excludes.includes( relativePath ) ) {
+			const normalizedRelativePath = path.normalize( relativePath );
+			if ( this.excludedPaths.has( normalizedRelativePath ) ) {
 				continue;
 			}
 			let stats: fs.Stats;
@@ -98,11 +99,11 @@ class DirArchiver {
 			if ( stats.isFile() ) {
 				if ( this.includeBaseDirectory ) {
 					this.archive.file( currentPath, {
-						name: path.join( this.baseDirectory, relativePath )
+						name: path.join( this.baseDirectory, normalizedRelativePath )
 					} );
 				} else {
 					this.archive.file( currentPath, {
-						name: relativePath
+						name: normalizedRelativePath
 					} );
 				}
 			} else if ( stats.isDirectory() ) {
