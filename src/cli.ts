@@ -22,12 +22,12 @@ if ( typeof directoryPath !== 'string' || typeof zipPath !== 'string' ) {
                        If this option is set to false the archive created will
                        unzip its content to the current directory.                               [bool]
       --exclude        A list with the names of the files and folders to exclude.               [array]` );
-	process.exit();
-}
-
-const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );
-archive.createZip().catch( ( err: unknown ) => {
-	const normalizedError = err instanceof Error ? err : new Error( String( err ) );
-	console.error( normalizedError );
 	process.exitCode = 1;
-} );
+} else {
+	const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );
+	archive.createZip().catch( ( err: unknown ) => {
+		const normalizedError = err instanceof Error ? err : new Error( String( err ) );
+		console.error( normalizedError );
+		process.exitCode = 1;
+	} );
+}

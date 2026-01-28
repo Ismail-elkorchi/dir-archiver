@@ -36,7 +36,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "npm run typecheck && eslint . --max-warnings=0",
-    "test": "npm run build && node test/smoke.js",
+    "test": "npm run build && node test/smoke.js && node test/cli.js",
     "prepack": "npm run build"
   },
   "engines": {
