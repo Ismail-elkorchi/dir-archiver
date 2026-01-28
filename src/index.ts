@@ -100,8 +100,9 @@ class DirArchiver {
 				if ( currentPath === this.zipPath ) {
 					continue;
 				}
-				const relativePath = path.relative( this.directoryPath, currentPath );
-				const normalizedRelativePath = path.normalize( relativePath );
+			const relativePath = path.relative( this.directoryPath, currentPath );
+			const normalizedRelativePath = path.normalize( relativePath );
+			const archiveRelativePath = normalizedRelativePath.replace( /\\/g, '/' );
 			const baseName = path.basename( normalizedRelativePath );
 			if ( this.excludedPaths.has( normalizedRelativePath ) || this.excludedNames.has( baseName ) ) {
 				continue;
@@ -122,15 +123,15 @@ class DirArchiver {
 				}
 
 				if ( stats.isFile() ) {
-					if ( this.includeBaseDirectory ) {
-						this.archive.file( currentPath, {
-							name: path.join( this.baseDirectory, normalizedRelativePath )
-						} );
-					} else {
-						this.archive.file( currentPath, {
-							name: normalizedRelativePath
-						} );
-					}
+				if ( this.includeBaseDirectory ) {
+					this.archive.file( currentPath, {
+						name: path.posix.join( this.baseDirectory, archiveRelativePath )
+					} );
+				} else {
+					this.archive.file( currentPath, {
+						name: archiveRelativePath
+					} );
+				}
 				} else if ( stats.isDirectory() ) {
 					directoriesToVisit.push( currentPath );
 				}
