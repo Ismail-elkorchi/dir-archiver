@@ -1,5 +1,11 @@
 # Changes to Dir Archiver
 
+### 2.1.2 (January 28, 2026)
+
+* Add a smoke test suite and npm test script.
+* Add CI to run linting and tests.
+* Declare Node.js >=14 in package metadata.
+
 ### 2.1.1 (January 28, 2026)
 
 * Avoid archiving the destination zip when it lives inside the source directory ([#5](https://github.com/Ismail-elkorchi/dir-archiver/issues/5)).

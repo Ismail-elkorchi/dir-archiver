@@ -10,6 +10,8 @@ Compress a whole directory (including subdirectories) into a zip file, with opt
 $ npm install dir-archiver
 ```
 
+Requires Node.js >=14.
+
 # Usage
 
 ## API
@@ -59,6 +61,12 @@ Options:
                     If this option is set to false the archive created will
                     unzip its content to the current directory.                               [bool]
   --exclude         A list with the names of the files and folders to exclude.               [array]
+```
+
+# Testing
+
+```sh
+$ npm test
 ```
 
 
