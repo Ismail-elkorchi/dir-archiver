@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import DirArchiver = require( './index' );
-import parseArgs = require( 'argv-flags' );
+import DirArchiver from './index';
+import parseArgs from 'argv-flags';
 
 const directoryPath = parseArgs( '--src', 'string' );
 const zipPath = parseArgs( '--dest', 'string' );
@@ -26,7 +26,8 @@ if ( typeof directoryPath !== 'string' || typeof zipPath !== 'string' ) {
 }
 
 const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );
-archive.createZip().catch( ( err ) => {
-	console.error( err );
+archive.createZip().catch( ( err: unknown ) => {
+	const normalizedError = err instanceof Error ? err : new Error( String( err ) );
+	console.error( normalizedError );
 	process.exitCode = 1;
 } );

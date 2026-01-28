@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "npm run typecheck",
+    "lint": "npm run typecheck && eslint . --max-warnings=0",
     "test": "npm run build && node test/smoke.js",
     "prepack": "npm run build"
   },
@@ -47,8 +47,13 @@
     "argv-flags": "^0.1.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/archiver": "^7.0.0",
     "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "eslint": "^9.39.2",
+    "globals": "^17.2.0",
     "typescript": "^5.3.3",
     "yauzl": "^3.2.0"
   }

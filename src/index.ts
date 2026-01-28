@@ -2,7 +2,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import archiver = require( 'archiver' );
+import archiver from 'archiver';
 
 class DirArchiver {
 	private excludes: string[];
@@ -22,14 +22,13 @@ class DirArchiver {
 	 */
 	constructor( directoryPath: string, zipPath: string, includeBaseDirectory = false, excludes: string[] = [] ) {
 		// Contains the excluded files and folders.
-		const safeExcludes = Array.isArray( excludes ) ? excludes : [];
-		this.excludes = safeExcludes.map( ( element ) => {
+		this.excludes = excludes.map( ( element ) => {
 			return path.normalize( element );
 		} );
 
 		this.directoryPath = path.resolve( directoryPath );
 		this.zipPath = path.resolve( zipPath );
-		this.includeBaseDirectory = includeBaseDirectory === true;
+		this.includeBaseDirectory = includeBaseDirectory;
 		this.baseDirectory = path.basename( this.directoryPath );
 
 		const relativeZipPath = path.relative( this.directoryPath, this.zipPath );
@@ -58,7 +57,7 @@ class DirArchiver {
 			const stats = fs.statSync( currentPath );
 			const relativePath = path.relative( this.directoryPath, currentPath );
 			if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
-				if ( this.includeBaseDirectory === true ) {
+				if ( this.includeBaseDirectory ) {
 					this.archive.file( currentPath, {
 						name: path.join( this.baseDirectory, relativePath )
 					} );
@@ -75,15 +74,18 @@ class DirArchiver {
 
 	private prettyBytes( bytes: number ): string {
 		if ( bytes > 1000 && bytes < 1000000 ) {
-			return Math.round( ( ( bytes / 1000 ) + Number.EPSILON ) * 100 ) / 100 + ' KB';
+			const kiloBytes = Math.round( ( ( bytes / 1000 ) + Number.EPSILON ) * 100 ) / 100;
+			return `${kiloBytes} KB`;
 		}
 		if ( bytes > 1000000 && bytes < 1000000000 ) {
-			return Math.round( ( ( bytes / 1000000 ) + Number.EPSILON ) * 100 ) / 100 + ' MB';
+			const megaBytes = Math.round( ( ( bytes / 1000000 ) + Number.EPSILON ) * 100 ) / 100;
+			return `${megaBytes} MB`;
 		}
 		if ( bytes > 1000000000 ) {
-			return Math.round( ( ( bytes / 1000000000 ) + Number.EPSILON ) * 100 ) / 100 + ' GB';
+			const gigaBytes = Math.round( ( ( bytes / 1000000000 ) + Number.EPSILON ) * 100 ) / 100;
+			return `${gigaBytes} GB`;
 		}
-		return bytes + ' bytes';
+		return `${bytes} bytes`;
 	}
 
 	createZip(): Promise<string> {
@@ -96,12 +98,13 @@ class DirArchiver {
 				settled = true;
 				resolve( value );
 			};
-			const safeReject = ( err: Error ) => {
+			const safeReject = ( err: unknown ) => {
 				if ( settled ) {
 					return;
 				}
 				settled = true;
-				reject( err );
+				const normalizedError = err instanceof Error ? err : new Error( String( err ) );
+				reject( normalizedError );
 			};
 
 			// Remove the destination zip if it exists.
@@ -111,7 +114,7 @@ class DirArchiver {
 					fs.unlinkSync( this.zipPath );
 				}
 			} catch ( err ) {
-				safeReject( err as Error );
+				safeReject( err );
 				return;
 			}
 
@@ -122,7 +125,7 @@ class DirArchiver {
 			} );
 
 			// Catch warnings during archiving.
-			this.archive.on( 'warning', ( err ) => {
+			this.archive.on( 'warning', ( err: Error & { code?: string } ) => {
 				if ( err.code === 'ENOENT' ) {
 					// log warning
 					console.log( err );
@@ -153,7 +156,7 @@ class DirArchiver {
 			this.traverseDirectoryTree( this.directoryPath );
 
 			// Finalize the archive.
-			this.archive.finalize();
+			void this.archive.finalize();
 		} );
 	}
 }
