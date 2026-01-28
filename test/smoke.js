@@ -7,6 +7,8 @@ const path = require( 'path' );
 const yauzl = require( 'yauzl' );
 const DirArchiver = require( '../dist/index' );
 
+const isWindows = process.platform === 'win32';
+
 const normalizeEntry = ( entry ) => entry.replace( /\\/g, '/' );
 
 const listZipEntries = ( zipPath ) => new Promise( ( resolve, reject ) => {
@@ -213,6 +215,19 @@ const run = async () => {
 		assert.ok( entriesOutsideSymlink.includes( `${baseName}/root.txt` ), 'base directory should still be included when following symlinks' );
 		if ( symlinkCreated ) {
 			assert.ok( entriesOutsideSymlink.includes( `${baseName}/external-link.txt` ), 'symlinks should be included under the base directory when following' );
+		}
+
+		if ( ! isWindows ) {
+			const lockedDir = path.join( src, 'locked' );
+			fs.mkdirSync( lockedDir );
+			fs.writeFileSync( path.join( lockedDir, 'secret.txt' ), 'secret' );
+			fs.chmodSync( lockedDir, 0 );
+
+			const destLocked = path.join( tmpRoot, 'locked.zip' );
+			const archiveLocked = new DirArchiver( src, destLocked, false, [] );
+			await assert.rejects( archiveLocked.createZip() );
+
+			fs.chmodSync( lockedDir, 0o755 );
 		}
 	} finally {
 		removeDir( tmpRoot );
