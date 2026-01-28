@@ -1,16 +1,16 @@
 {
   "name": "dir-archiver",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
   "license": "MIT",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
-    "dir-archiver": "cli.js"
+    "dir-archiver": "dist/cli.js"
   },
   "files": [
     "LICENSE",
-    "index.js",
-    "cli.js"
+    "dist"
   ],
   "keywords": [
     "zip",
@@ -33,9 +33,11 @@
   "bugs": "https://github.com/Ismail-elkorchi/dir-archiver/issues",
   "homepage": "https://github.com/Ismail-elkorchi/dir-archiver",
   "scripts": {
-    "lint": "eslint cli.js index.js",
-    "lint:fix": "eslint --fix cli.js index.js",
-    "test": "node test/smoke.js"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "npm run typecheck",
+    "test": "npm run build && node test/smoke.js",
+    "prepack": "npm run build"
   },
   "engines": {
     "node": ">=14"
@@ -45,8 +47,9 @@
     "argv-flags": "^0.1.1"
   },
   "devDependencies": {
-    "eslint": "^8.24.0",
-    "eslint-plugin-n": "^15.3.0",
+    "@types/archiver": "^7.0.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
     "yauzl": "^3.2.0"
   }
 }

@@ -1,19 +1,26 @@
 'use strict';
 
-const path = require( 'path' );
-const fs = require( 'fs' );
-const archiver = require( 'archiver' );
+import * as path from 'path';
+import * as fs from 'fs';
+import archiver = require( 'archiver' );
 
 class DirArchiver {
+	private excludes: string[];
+	private directoryPath: string;
+	private zipPath: string;
+	private includeBaseDirectory: boolean;
+	private baseDirectory: string;
+	private output!: fs.WriteStream;
+	private archive!: archiver.Archiver;
+
 	/**
 	 * The constructor.
-	 * @param {string} directoryPath - the path of the folder to archive.
-	 * @param {string} zipPath - The path of the zip file to create.
-	 * @param {Boolean} includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project", setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
-	 * @param {array} excludes - The name of the files and foldes to exclude.
+	 * @param directoryPath - the path of the folder to archive.
+	 * @param zipPath - The path of the zip file to create.
+	 * @param includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project", setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
+	 * @param excludes - The name of the files and foldes to exclude.
 	 */
-	constructor( directoryPath, zipPath, includeBaseDirectory, excludes ) {
-
+	constructor( directoryPath: string, zipPath: string, includeBaseDirectory = false, excludes: string[] = [] ) {
 		// Contains the excluded files and folders.
 		const safeExcludes = Array.isArray( excludes ) ? excludes : [];
 		this.excludes = safeExcludes.map( ( element ) => {
@@ -21,15 +28,14 @@ class DirArchiver {
 		} );
 
 		this.directoryPath = path.resolve( directoryPath );
-
 		this.zipPath = path.resolve( zipPath );
-
-		this.includeBaseDirectory = includeBaseDirectory;
-
+		this.includeBaseDirectory = includeBaseDirectory === true;
 		this.baseDirectory = path.basename( this.directoryPath );
 
 		const relativeZipPath = path.relative( this.directoryPath, this.zipPath );
-		const isZipInsideSource = relativeZipPath && ! relativeZipPath.startsWith( '..' ) && ! path.isAbsolute( relativeZipPath );
+		const isZipInsideSource = relativeZipPath.length > 0
+			&& ! relativeZipPath.startsWith( '..' )
+			&& ! path.isAbsolute( relativeZipPath );
 		if ( isZipInsideSource ) {
 			const normalizedZipPath = path.normalize( relativeZipPath );
 			if ( ! this.excludes.includes( normalizedZipPath ) ) {
@@ -40,9 +46,9 @@ class DirArchiver {
 
 	/**
 	 * Recursively traverse the directory tree and append the files to the archive.
-	 * @param {string} directoryPath - The path of the directory being looped through.
+	 * @param directoryPath - The path of the directory being looped through.
 	 */
-	traverseDirectoryTree( directoryPath ) {
+	private traverseDirectoryTree( directoryPath: string ): void {
 		const files = fs.readdirSync( directoryPath );
 		for ( const file of files ) {
 			const currentPath = path.join( path.resolve( directoryPath ), file );
@@ -50,7 +56,7 @@ class DirArchiver {
 				continue;
 			}
 			const stats = fs.statSync( currentPath );
-			let relativePath = path.relative( this.directoryPath, currentPath );
+			const relativePath = path.relative( this.directoryPath, currentPath );
 			if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
 				if ( this.includeBaseDirectory === true ) {
 					this.archive.file( currentPath, {
@@ -67,7 +73,7 @@ class DirArchiver {
 		}
 	}
 
-	prettyBytes( bytes ) {
+	private prettyBytes( bytes: number ): string {
 		if ( bytes > 1000 && bytes < 1000000 ) {
 			return Math.round( ( ( bytes / 1000 ) + Number.EPSILON ) * 100 ) / 100 + ' KB';
 		}
@@ -80,17 +86,17 @@ class DirArchiver {
 		return bytes + ' bytes';
 	}
 
-	createZip () {
+	createZip(): Promise<string> {
 		return new Promise( ( resolve, reject ) => {
 			let settled = false;
-			const safeResolve = ( value ) => {
+			const safeResolve = ( value: string ) => {
 				if ( settled ) {
 					return;
 				}
 				settled = true;
 				resolve( value );
 			};
-			const safeReject = ( err ) => {
+			const safeReject = ( err: Error ) => {
 				if ( settled ) {
 					return;
 				}
@@ -105,7 +111,7 @@ class DirArchiver {
 					fs.unlinkSync( this.zipPath );
 				}
 			} catch ( err ) {
-				safeReject( err );
+				safeReject( err as Error );
 				return;
 			}
 
@@ -151,4 +157,5 @@ class DirArchiver {
 		} );
 	}
 }
-module.exports = DirArchiver;
+
+export = DirArchiver;

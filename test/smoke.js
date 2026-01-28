@@ -5,7 +5,7 @@ const fs = require( 'fs' );
 const os = require( 'os' );
 const path = require( 'path' );
 const yauzl = require( 'yauzl' );
-const DirArchiver = require( '../index' );
+const DirArchiver = require( '../dist/index' );
 
 const normalizeEntry = ( entry ) => entry.replace( /\\/g, '/' );
 

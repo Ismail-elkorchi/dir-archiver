@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
-const DirArchiver = require( './index' );
-const parseArgs = require( 'argv-flags' );
+import DirArchiver = require( './index' );
+import parseArgs = require( 'argv-flags' );
 
 const directoryPath = parseArgs( '--src', 'string' );
 const zipPath = parseArgs( '--dest', 'string' );
-const includeBaseDirectory = parseArgs( '--includebasedir', 'boolean' );
-const excludes = parseArgs( '--exclude', 'array' ) || [];
+const includeBaseDirectory = parseArgs( '--includebasedir', 'boolean' ) === true;
+const excludeValues = parseArgs( '--exclude', 'array' );
+const excludes = Array.isArray( excludeValues ) ? excludeValues : [];
 
-if ( directoryPath === false || zipPath === false ) {
+if ( typeof directoryPath !== 'string' || typeof zipPath !== 'string' ) {
 	console.log( ` Dir Archiver could not be executed. Some arguments are missing.
 
     Options:
@@ -21,7 +22,7 @@ if ( directoryPath === false || zipPath === false ) {
                        If this option is set to false the archive created will
                        unzip its content to the current directory.                               [bool]
       --exclude        A list with the names of the files and folders to exclude.               [array]` );
-	process.exit(); // eslint-disable-line n/no-process-exit
+	process.exit();
 }
 
 const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );

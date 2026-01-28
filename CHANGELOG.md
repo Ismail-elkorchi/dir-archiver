@@ -1,5 +1,11 @@
 # Changes to Dir Archiver
 
+### 2.2.0 (Unreleased)
+
+* Migrate source to TypeScript with strict compiler options.
+* Build compiled output into `dist/` with declaration files.
+* Replace ESLint linting with TypeScript typechecking in CI.
+
 ### 2.1.2 (January 28, 2026)
 
 * Add a smoke test suite and npm test script.

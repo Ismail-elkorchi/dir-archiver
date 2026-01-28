@@ -69,6 +69,13 @@ Options:
 $ npm test
 ```
 
+# Development
+
+```sh
+$ npm run build
+$ npm run lint
+```
+
 
 
 [changelog-image]: https://img.shields.io/badge/changelog-md-blue.svg?style=flat-square
