@@ -205,6 +205,15 @@ const run = async () => {
 		const expectedBaseEntry = `${baseName}/root.txt`;
 		assert.ok( entriesOutside.includes( expectedBaseEntry ), 'base directory should be included' );
 		assert.ok( ! entriesOutside.includes( 'root.txt' ), 'root.txt should not be at archive root' );
+
+		const destOutsideSymlink = path.join( tmpRoot, 'outside-symlink.zip' );
+		const archiveOutsideSymlink = new DirArchiver( src, destOutsideSymlink, true, [], true );
+		await archiveOutsideSymlink.createZip();
+		const entriesOutsideSymlink = await listZipEntries( destOutsideSymlink );
+		assert.ok( entriesOutsideSymlink.includes( `${baseName}/root.txt` ), 'base directory should still be included when following symlinks' );
+		if ( symlinkCreated ) {
+			assert.ok( entriesOutsideSymlink.includes( `${baseName}/external-link.txt` ), 'symlinks should be included under the base directory when following' );
+		}
 	} finally {
 		removeDir( tmpRoot );
 	}
