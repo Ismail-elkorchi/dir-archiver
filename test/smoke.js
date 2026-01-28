@@ -96,6 +96,15 @@ const run = async () => {
 			symlinkDirCreated = false;
 		}
 
+		let loopSymlinkCreated = false;
+		const loopSymlinkPath = path.join( src, 'loop' );
+		try {
+			fs.symlinkSync( src, loopSymlinkPath, 'dir' );
+			loopSymlinkCreated = true;
+		} catch {
+			loopSymlinkCreated = false;
+		}
+
 		const destInside = path.join( src, 'archive.zip' );
 		const archiveInside = new DirArchiver( src, destInside, false, [ 'nested' ] );
 		await archiveInside.createZip();
@@ -111,6 +120,9 @@ const run = async () => {
 		}
 		if ( symlinkDirCreated ) {
 			assert.ok( ! entriesInside.some( ( entry ) => entry.startsWith( 'linked-external/' ) ), 'symlinked directories should be skipped by default' );
+		}
+		if ( loopSymlinkCreated ) {
+			assert.ok( ! entriesInside.some( ( entry ) => entry.startsWith( 'loop/' ) ), 'loop symlink should be skipped by default' );
 		}
 
 		const fileExcludePath = path.join( 'nested', 'skip.txt' );
@@ -128,7 +140,7 @@ const run = async () => {
 		const deepRelative = normalizeEntry( path.relative( src, deepFilePath ) );
 		assert.ok( entriesDeep.includes( deepRelative ), 'deep file should be included' );
 
-		if ( symlinkCreated || symlinkDirCreated ) {
+		if ( symlinkCreated || symlinkDirCreated || loopSymlinkCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );
 			const archiveFollow = new DirArchiver( src, destFollow, false, [], true );
 			await archiveFollow.createZip();
@@ -138,6 +150,9 @@ const run = async () => {
 			}
 			if ( symlinkDirCreated ) {
 				assert.ok( entriesFollow.includes( 'linked-external/external.txt' ), 'symlinked directories should be included when following symlinks' );
+			}
+			if ( loopSymlinkCreated ) {
+				assert.ok( ! entriesFollow.some( ( entry ) => entry.startsWith( 'loop/' ) ), 'loop symlink should not be traversed' );
 			}
 		}
 
