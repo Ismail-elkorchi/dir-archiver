@@ -59,6 +59,7 @@ const run = async () => {
 
 		fs.writeFileSync( path.join( src, 'root.txt' ), 'root' );
 		fs.writeFileSync( path.join( nested, 'nested.txt' ), 'nested' );
+		fs.writeFileSync( path.join( nested, 'root.txt' ), 'nested-root' );
 		fs.writeFileSync( path.join( nested, 'skip.txt' ), 'skip' );
 
 		const cacheDir = path.join( src, 'cache' );
@@ -153,6 +154,13 @@ const run = async () => {
 		const entriesNameExclude = await listZipEntries( destNameExclude );
 		assert.ok( ! entriesNameExclude.includes( 'cache/cache.txt' ), 'cache directory should be excluded by name' );
 		assert.ok( ! entriesNameExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should be excluded by name' );
+
+		const destNameExcludeFile = path.join( tmpRoot, 'name-exclude-file.zip' );
+		const archiveNameExcludeFile = new DirArchiver( src, destNameExcludeFile, false, [ 'root.txt' ] );
+		await archiveNameExcludeFile.createZip();
+		const entriesNameExcludeFile = await listZipEntries( destNameExcludeFile );
+		assert.ok( ! entriesNameExcludeFile.includes( 'root.txt' ), 'root.txt should be excluded by name' );
+		assert.ok( ! entriesNameExcludeFile.includes( 'nested/root.txt' ), 'nested root.txt should be excluded by name' );
 
 		const destPathExclude = path.join( tmpRoot, 'path-exclude.zip' );
 		const archivePathExclude = new DirArchiver( src, destPathExclude, false, [ 'cache/' ] );
