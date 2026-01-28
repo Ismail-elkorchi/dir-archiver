@@ -10,7 +10,7 @@ Compress a whole directory (including subdirectories) into a zip file, with opt
 $ npm install dir-archiver
 ```
 
-Requires Node.js >=14.
+Requires Node.js >=18.
 
 # Usage
 
