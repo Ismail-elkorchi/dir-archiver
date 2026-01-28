@@ -13,6 +13,7 @@
 * Normalize archive entry paths to forward slashes for cross-platform zip compatibility.
 * Honor explicit true/false values for CLI boolean flags.
 * Improve error handling for archive creation failures.
+* Bump argv-flags to 0.2.0.
 
 ### 2.1.2 (January 28, 2026)
 

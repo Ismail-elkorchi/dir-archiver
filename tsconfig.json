@@ -18,8 +18,7 @@
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "useUnknownInCatchVariables": true,
-    "skipLibCheck": false,
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "skipLibCheck": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test"]
