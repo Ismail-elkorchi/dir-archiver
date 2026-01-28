@@ -66,24 +66,33 @@ const run = async () => {
 
 		fs.mkdirSync( src );
 		fs.writeFileSync( path.join( src, 'root.txt' ), 'root' );
+		const cacheDir = path.join( src, 'cache' );
+		fs.mkdirSync( cacheDir );
+		fs.writeFileSync( path.join( cacheDir, 'cache.txt' ), 'cache' );
 
 		const success = runCli( [ '--src', src, '--dest', dest ] );
 		assert.strictEqual( success.status, 0, 'CLI should exit with code 0 on success' );
 		assert.ok( fs.existsSync( dest ), 'CLI should create the archive' );
 
 		const destInclude = path.join( tmpRoot, 'include.zip' );
-		const includeResult = runCli( [ '--src', src, '--dest', destInclude, '--includebasedir', 'true' ] );
+		const includeResult = runCli( [ '--src', src, '--dest', destInclude, '--includebasedir=true' ] );
 		assert.strictEqual( includeResult.status, 0, 'CLI should succeed with includebasedir true' );
 		const entriesInclude = await listZipEntries( destInclude );
 		const baseName = path.basename( src );
 		assert.ok( entriesInclude.includes( `${baseName}/root.txt` ), 'includeBaseDirectory true should include the base directory' );
 
 		const destExclude = path.join( tmpRoot, 'exclude.zip' );
-		const excludeResult = runCli( [ '--src', src, '--dest', destExclude, '--includebasedir', 'false' ] );
+		const excludeResult = runCli( [ '--src', src, '--dest', destExclude, '--includebasedir=false' ] );
 		assert.strictEqual( excludeResult.status, 0, 'CLI should succeed with includebasedir false' );
 		const entriesExclude = await listZipEntries( destExclude );
 		assert.ok( entriesExclude.includes( 'root.txt' ), 'includeBaseDirectory false should keep root.txt at the archive root' );
 		assert.ok( ! entriesExclude.includes( `${baseName}/root.txt` ), 'includeBaseDirectory false should not include the base directory' );
+
+		const destExcludeInline = path.join( tmpRoot, 'exclude-inline.zip' );
+		const excludeInlineResult = runCli( [ '--src', src, '--dest', destExcludeInline, '--exclude=cache' ] );
+		assert.strictEqual( excludeInlineResult.status, 0, 'CLI should succeed with inline exclude values' );
+		const entriesExcludeInline = await listZipEntries( destExcludeInline );
+		assert.ok( ! entriesExcludeInline.includes( 'cache/cache.txt' ), 'inline exclude should remove matching entries' );
 
 		let symlinkCreated = false;
 		const externalTarget = path.join( tmpRoot, 'external.txt' );
@@ -98,13 +107,13 @@ const run = async () => {
 
 		if ( symlinkCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );
-			const followResult = runCli( [ '--src', src, '--dest', destFollow, '--followsymlinks', 'true' ] );
+			const followResult = runCli( [ '--src', src, '--dest', destFollow, '--followsymlinks=true' ] );
 			assert.strictEqual( followResult.status, 0, 'CLI should succeed with followsymlinks true' );
 			const entriesFollow = await listZipEntries( destFollow );
 			assert.ok( entriesFollow.includes( 'external-link.txt' ), 'followsymlinks true should include symlinked files' );
 
 			const destNoFollow = path.join( tmpRoot, 'nofollow.zip' );
-			const noFollowResult = runCli( [ '--src', src, '--dest', destNoFollow, '--followsymlinks', 'false' ] );
+			const noFollowResult = runCli( [ '--src', src, '--dest', destNoFollow, '--followsymlinks=false' ] );
 			assert.strictEqual( noFollowResult.status, 0, 'CLI should succeed with followsymlinks false' );
 			const entriesNoFollow = await listZipEntries( destNoFollow );
 			assert.ok( ! entriesNoFollow.includes( 'external-link.txt' ), 'followsymlinks false should skip symlinked files' );
