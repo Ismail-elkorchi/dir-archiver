@@ -228,6 +228,15 @@ const run = async () => {
 			await assert.rejects( archiveLocked.createZip() );
 
 			fs.chmodSync( lockedDir, 0o755 );
+
+			const readOnlyDir = path.join( tmpRoot, 'readonly' );
+			fs.mkdirSync( readOnlyDir );
+			fs.chmodSync( readOnlyDir, 0o555 );
+			const destReadOnly = path.join( readOnlyDir, 'archive.zip' );
+			const archiveReadOnly = new DirArchiver( src, destReadOnly, false, [] );
+			await assert.rejects( archiveReadOnly.createZip() );
+			assert.ok( ! fs.existsSync( destReadOnly ), 'archive should not exist when destination is not writable' );
+			fs.chmodSync( readOnlyDir, 0o755 );
 		}
 	} finally {
 		removeDir( tmpRoot );
