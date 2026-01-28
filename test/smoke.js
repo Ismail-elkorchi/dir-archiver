@@ -9,6 +9,8 @@ const DirArchiver = require( '../dist/index' );
 
 const isWindows = process.platform === 'win32';
 
+const originalWin32Normalize = path.win32.normalize;
+
 const normalizeEntry = ( entry ) => entry.replace( /\\/g, '/' );
 
 const listZipEntries = ( zipPath ) => new Promise( ( resolve, reject ) => {
@@ -247,7 +249,19 @@ const run = async () => {
 			assert.ok( ! fs.existsSync( destUnreadable ), 'archive should be cleaned up when a file is unreadable' );
 			fs.chmodSync( unreadableFile, 0o644 );
 		}
+
+		const destWinNormalize = path.join( tmpRoot, 'win-normalize.zip' );
+		const winArchive = new DirArchiver( src, destWinNormalize, false, [] );
+		const winNormalizeCalled = [];
+		path.win32.normalize = ( value ) => {
+			winNormalizeCalled.push( value );
+			return originalWin32Normalize( value );
+		};
+		await winArchive.createZip();
+		path.win32.normalize = originalWin32Normalize;
+		assert.ok( winNormalizeCalled.length === 0, 'path.win32.normalize should not be used during archiving' );
 	} finally {
+		path.win32.normalize = originalWin32Normalize;
 		removeDir( tmpRoot );
 	}
 };
