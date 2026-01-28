@@ -40,6 +40,33 @@ const listZipEntries = ( zipPath ) => new Promise( ( resolve, reject ) => {
 	} );
 } );
 
+const listZipEntriesRaw = ( zipPath ) => new Promise( ( resolve, reject ) => {
+	yauzl.open( zipPath, { lazyEntries: true }, ( err, zipfile ) => {
+		if ( err ) {
+			reject( err );
+			return;
+		}
+
+		const entries = [];
+
+		zipfile.on( 'entry', ( entry ) => {
+			entries.push( entry.fileName );
+			zipfile.readEntry();
+		} );
+
+		zipfile.on( 'end', () => {
+			zipfile.close();
+			resolve( entries );
+		} );
+
+		zipfile.on( 'error', ( zipErr ) => {
+			reject( zipErr );
+		} );
+
+		zipfile.readEntry();
+	} );
+} );
+
 const removeDir = ( dirPath ) => {
 	if ( ! dirPath ) {
 		return;
@@ -173,6 +200,25 @@ const run = async () => {
 		assert.ok( ! entriesPathExclude.includes( 'cache/cache.txt' ), 'root cache directory should be excluded by path' );
 		assert.ok( entriesPathExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should remain when excluding root cache by path' );
 
+		const destWindowsExclude = path.join( tmpRoot, 'windows-exclude.zip' );
+		const archiveWindowsExclude = new DirArchiver( src, destWindowsExclude, false, [ 'nested\\\\skip.txt', 'cache\\\\' ] );
+		await archiveWindowsExclude.createZip();
+		const entriesWindowsExclude = await listZipEntries( destWindowsExclude );
+		assert.ok( ! entriesWindowsExclude.includes( 'nested/skip.txt' ), 'windows-style path should exclude nested skip file' );
+		assert.ok( ! entriesWindowsExclude.includes( 'cache/cache.txt' ), 'windows-style path should exclude root cache directory' );
+		assert.ok( entriesWindowsExclude.includes( 'nested/cache/nested-cache.txt' ), 'windows-style path should not exclude nested cache directory' );
+
+		const destWindowsMixedExclude = path.join( tmpRoot, 'windows-mixed-exclude.zip' );
+		const windowsNestedCache = `${path.win32.join( 'nested', 'cache' )}\\`;
+		const windowsSkip = `.\\${path.win32.join( 'nested', 'skip.txt' )}`;
+		const archiveWindowsMixedExclude = new DirArchiver( src, destWindowsMixedExclude, false, [ windowsNestedCache, windowsSkip ] );
+		await archiveWindowsMixedExclude.createZip();
+		const entriesWindowsMixedExclude = await listZipEntries( destWindowsMixedExclude );
+		assert.ok( ! entriesWindowsMixedExclude.includes( 'nested/cache/nested-cache.txt' ), 'windows-style mixed separators should exclude nested cache directory' );
+		assert.ok( ! entriesWindowsMixedExclude.includes( 'nested/skip.txt' ), 'windows-style mixed separators should exclude nested skip file' );
+		assert.ok( entriesWindowsMixedExclude.includes( 'cache/cache.txt' ), 'windows-style nested path should not exclude root cache directory' );
+		assert.ok( entriesWindowsMixedExclude.includes( 'nested/nested.txt' ), 'windows-style nested path should not exclude sibling files' );
+
 		if ( symlinkCreated || symlinkDirCreated || loopSymlinkCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );
 			const archiveFollow = new DirArchiver( src, destFollow, false, [], true );
@@ -218,6 +264,9 @@ const run = async () => {
 		if ( symlinkCreated ) {
 			assert.ok( entriesOutsideSymlink.includes( `${baseName}/external-link.txt` ), 'symlinks should be included under the base directory when following' );
 		}
+
+		const rawEntriesOutsideSymlink = await listZipEntriesRaw( destOutsideSymlink );
+		assert.ok( ! rawEntriesOutsideSymlink.some( ( entry ) => entry.includes( '\\\\' ) ), 'archive entries should use forward slashes' );
 
 		if ( ! isWindows ) {
 			const lockedDir = path.join( src, 'locked' );

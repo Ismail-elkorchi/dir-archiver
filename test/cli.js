@@ -94,6 +94,45 @@ const run = async () => {
 		const entriesExcludeInline = await listZipEntries( destExcludeInline );
 		assert.ok( ! entriesExcludeInline.includes( 'cache/cache.txt' ), 'inline exclude should remove matching entries' );
 
+		const nestedDir = path.join( src, 'nested' );
+		fs.mkdirSync( nestedDir );
+		fs.writeFileSync( path.join( nestedDir, 'nested.txt' ), 'nested' );
+		fs.writeFileSync( path.join( nestedDir, 'skip.txt' ), 'skip' );
+		const nestedCacheDir = path.join( nestedDir, 'cache' );
+		fs.mkdirSync( nestedCacheDir );
+		fs.writeFileSync( path.join( nestedCacheDir, 'nested-cache.txt' ), 'nested-cache' );
+
+		const destExcludeWin = path.join( tmpRoot, 'exclude-win.zip' );
+		const windowsNestedCache = `${path.win32.join( 'nested', 'cache' )}\\`;
+		const windowsSkip = `.\\${path.win32.join( 'nested', 'skip.txt' )}`;
+		const excludeWinResult = runCli( [
+			'--src', src,
+			'--dest', destExcludeWin,
+			'--exclude', windowsNestedCache,
+			windowsSkip
+		] );
+		assert.strictEqual( excludeWinResult.status, 0, 'CLI should succeed with Windows-style exclude values' );
+		const entriesExcludeWin = await listZipEntries( destExcludeWin );
+		assert.ok( ! entriesExcludeWin.includes( 'nested/skip.txt' ), 'Windows-style exclude should remove the nested skip file' );
+		assert.ok( ! entriesExcludeWin.includes( 'nested/cache/nested-cache.txt' ), 'Windows-style exclude should remove nested cache directory' );
+		assert.ok( entriesExcludeWin.includes( 'nested/nested.txt' ), 'Windows-style exclude should not remove other nested files' );
+		assert.ok( entriesExcludeWin.includes( 'cache/cache.txt' ), 'Windows-style nested exclude should not remove root cache' );
+
+		const destIncludeWin = path.join( tmpRoot, 'include-win.zip' );
+		const includeWinResult = runCli( [
+			'--src', src,
+			'--dest', destIncludeWin,
+			'--includebasedir=true',
+			'--exclude', windowsSkip,
+			windowsNestedCache
+		] );
+		assert.strictEqual( includeWinResult.status, 0, 'CLI should succeed with includebasedir true and Windows-style excludes' );
+		const entriesIncludeWin = await listZipEntries( destIncludeWin );
+		assert.ok( ! entriesIncludeWin.includes( `${baseName}/nested/skip.txt` ), 'includeBaseDirectory should still exclude nested skip file' );
+		assert.ok( ! entriesIncludeWin.includes( `${baseName}/nested/cache/nested-cache.txt` ), 'includeBaseDirectory should still exclude nested cache directory' );
+		assert.ok( entriesIncludeWin.includes( `${baseName}/nested/nested.txt` ), 'includeBaseDirectory should keep nested files' );
+		assert.ok( entriesIncludeWin.includes( `${baseName}/cache/cache.txt` ), 'includeBaseDirectory should keep root cache when excluding nested cache' );
+
 		let symlinkCreated = false;
 		const externalTarget = path.join( tmpRoot, 'external.txt' );
 		const symlinkPath = path.join( src, 'external-link.txt' );

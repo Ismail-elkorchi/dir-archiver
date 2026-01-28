@@ -32,7 +32,7 @@ class DirArchiver {
 		this.excludedPaths = new Set();
 		this.excludedNames = new Set();
 		for ( const excludeRaw of excludes ) {
-			const normalizedExclude = path.normalize( excludeRaw );
+			const normalizedExclude = path.normalize( excludeRaw.replace( /\\/g, path.sep ) );
 			if ( normalizedExclude.length === 0 ) {
 				continue;
 			}
