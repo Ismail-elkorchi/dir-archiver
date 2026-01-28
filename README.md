@@ -2,7 +2,7 @@
 [![changelog][changelog-image]][changelog-url]
 
 # Dir Archiver
-Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.
+Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files or directories.
 
 # Installation
 
@@ -27,16 +27,16 @@ const excludes = ['directory_name', 'file.extension'];
  * Create a dir-archiver object. 
  * @param {string} directoryPath - The path of the folder to archive.
  * @param {string} zipPath - The path of the zip file to create.
- * @param {Boolean} includeBaseDirectory - Includes a base directory at the root of the archive.
+ * @param {boolean} includeBaseDirectory - Includes a base directory at the root of the archive.
  * For example, if the root folder of your project is named "your-project", setting
  * includeBaseDirectory to true will create an archive that includes this base directory.
  * If this option is set to false the archive created will unzip its content to
  * the current directory.
- * @param {array} excludes - A list with the names of the files and folders to exclude. Names without path separators
+ * @param {string[]} excludes - A list with the names of the files and folders to exclude. Names without path separators
  * will match anywhere; use a relative path (for example, "nested/file.txt") to exclude a specific path.
- * @param {Boolean} followSymlinks - Follow symlinks when traversing directories. Default: false.
+ * @param {boolean} followSymlinks - Follow symlinks when traversing directories. Default: false.
 */
-var archive = new DirArchiver('path/to/directory', 'path/to/desination/zipfile.zip', true, excludes, false);
+var archive = new DirArchiver('path/to/directory', 'path/to/destination/zipfile.zip', true, excludes, false);
 
 // Create the zip file.
 archive.createZip().then(() => {
@@ -51,7 +51,7 @@ archive.createZip().then(() => {
 ## Command Line Interface
 
 ```sh
-Usage: dir-archiver --src <path-to-directory> --dest <path-to-file>.zip --includebasedir true|false --exclude folder-name file-name.extention
+Usage: dir-archiver --src <path-to-directory> --dest <path-to-file>.zip --includebasedir true|false --exclude folder-name file-name.extension
 
 Options:
   --src             The path of the folder to archive.                            [string][required]
@@ -65,7 +65,7 @@ Options:
   --followsymlinks  Follow symlinks when traversing directories.                              [bool]
   --exclude         A list with the names of the files and folders to exclude. Names without
                     path separators match anywhere; use a relative path to target a specific
-                    entry.                                                                   [array]
+                    entry. Windows-style backslashes are accepted and normalized.           [array]
 ```
 
 Inline values are supported for flags (for example, `--includebasedir=true` or `--exclude=cache`).
