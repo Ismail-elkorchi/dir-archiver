@@ -8,6 +8,7 @@
 * Require Node.js >=18.
 * CLI exits with a non-zero status when required arguments are missing.
 * Add a CLI smoke test.
+* Skip symlinks by default and add an option to follow them.
 
 ### 2.1.2 (January 28, 2026)
 

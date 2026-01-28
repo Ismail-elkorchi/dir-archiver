@@ -33,8 +33,9 @@ const excludes = ['directory_name', 'file.extension'];
  * If this option is set to false the archive created will unzip its content to
  * the current directory.
  * @param {array} excludes - A list with the names of the files and folders to exclude.
+ * @param {Boolean} followSymlinks - Follow symlinks when traversing directories. Default: false.
 */
-var archive = new DirArchiver('path/to/directory', 'path/to/desination/zipfile.zip', true, excludes);
+var archive = new DirArchiver('path/to/directory', 'path/to/desination/zipfile.zip', true, excludes, false);
 
 // Create the zip file.
 archive.createZip().then(() => {
@@ -60,6 +61,7 @@ Options:
                     an archive that includes this base directory.
                     If this option is set to false the archive created will
                     unzip its content to the current directory.                               [bool]
+  --followsymlinks  Follow symlinks when traversing directories.                              [bool]
   --exclude         A list with the names of the files and folders to exclude.               [array]
 ```
 
