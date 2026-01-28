@@ -68,6 +68,8 @@ Options:
                     entry.                                                                   [array]
 ```
 
+Inline values are supported for flags (for example, `--includebasedir=true` or `--exclude=cache`).
+
 # Testing
 
 ```sh
