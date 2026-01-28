@@ -31,21 +31,23 @@ class DirArchiver {
 		followSymlinks = false
 	) {
 		// Contains the excluded files and folders.
-		const normalizedExcludes = excludes.map( ( element ) => {
-			return path.normalize( element );
-		} );
 		this.excludedPaths = new Set();
 		this.excludedNames = new Set();
-		for ( const excludeEntry of normalizedExcludes ) {
-			if ( excludeEntry.length === 0 ) {
+		for ( const excludeRaw of excludes ) {
+			const normalizedExclude = path.normalize( excludeRaw );
+			if ( normalizedExclude.length === 0 ) {
 				continue;
 			}
-			this.excludedPaths.add( excludeEntry );
-			const hasSeparator = excludeEntry.includes( '/' )
-				|| excludeEntry.includes( '\\' )
-				|| excludeEntry.includes( path.sep );
+			const hasSeparator = normalizedExclude.includes( '/' )
+				|| normalizedExclude.includes( '\\' )
+				|| normalizedExclude.includes( path.sep );
+			const trimmedExclude = normalizedExclude.replace( /[\\/]+$/g, '' );
+			if ( trimmedExclude.length === 0 ) {
+				continue;
+			}
+			this.excludedPaths.add( trimmedExclude );
 			if ( ! hasSeparator ) {
-				this.excludedNames.add( excludeEntry );
+				this.excludedNames.add( trimmedExclude );
 			}
 		}
 

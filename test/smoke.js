@@ -154,6 +154,13 @@ const run = async () => {
 		assert.ok( ! entriesNameExclude.includes( 'cache/cache.txt' ), 'cache directory should be excluded by name' );
 		assert.ok( ! entriesNameExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should be excluded by name' );
 
+		const destPathExclude = path.join( tmpRoot, 'path-exclude.zip' );
+		const archivePathExclude = new DirArchiver( src, destPathExclude, false, [ 'cache/' ] );
+		await archivePathExclude.createZip();
+		const entriesPathExclude = await listZipEntries( destPathExclude );
+		assert.ok( ! entriesPathExclude.includes( 'cache/cache.txt' ), 'root cache directory should be excluded by path' );
+		assert.ok( entriesPathExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should remain when excluding root cache by path' );
+
 		if ( symlinkCreated || symlinkDirCreated || loopSymlinkCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );
 			const archiveFollow = new DirArchiver( src, destFollow, false, [], true );
