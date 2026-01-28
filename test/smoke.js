@@ -60,6 +60,17 @@ const run = async () => {
 		fs.writeFileSync( path.join( src, 'root.txt' ), 'root' );
 		fs.writeFileSync( path.join( nested, 'nested.txt' ), 'nested' );
 
+		let symlinkCreated = false;
+		const externalTarget = path.join( tmpRoot, 'external.txt' );
+		const symlinkPath = path.join( src, 'external-link.txt' );
+		fs.writeFileSync( externalTarget, 'external' );
+		try {
+			fs.symlinkSync( externalTarget, symlinkPath );
+			symlinkCreated = true;
+		} catch {
+			symlinkCreated = false;
+		}
+
 		const destInside = path.join( src, 'archive.zip' );
 		const archiveInside = new DirArchiver( src, destInside, false, [ 'nested' ] );
 		await archiveInside.createZip();
@@ -70,6 +81,17 @@ const run = async () => {
 		assert.ok( entriesInside.includes( 'root.txt' ), 'root.txt should be included' );
 		assert.ok( ! entriesInside.includes( 'archive.zip' ), 'archive.zip should be excluded' );
 		assert.ok( ! entriesInside.some( ( entry ) => entry.startsWith( 'nested/' ) ), 'nested folder should be excluded' );
+		if ( symlinkCreated ) {
+			assert.ok( ! entriesInside.includes( 'external-link.txt' ), 'symlink should be skipped by default' );
+		}
+
+		if ( symlinkCreated ) {
+			const destFollow = path.join( tmpRoot, 'follow.zip' );
+			const archiveFollow = new DirArchiver( src, destFollow, false, [], true );
+			await archiveFollow.createZip();
+			const entriesFollow = await listZipEntries( destFollow );
+			assert.ok( entriesFollow.includes( 'external-link.txt' ), 'symlink should be included when following symlinks' );
+		}
 
 		const destOutside = path.join( tmpRoot, 'outside.zip' );
 		const archiveOutside = new DirArchiver( src, destOutside, true, [] );

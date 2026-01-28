@@ -6,6 +6,7 @@ import parseArgs from 'argv-flags';
 const directoryPath = parseArgs( '--src', 'string' );
 const zipPath = parseArgs( '--dest', 'string' );
 const includeBaseDirectory = parseArgs( '--includebasedir', 'boolean' ) === true;
+const followSymlinks = parseArgs( '--followsymlinks', 'boolean' ) === true;
 const excludeValues = parseArgs( '--exclude', 'array' );
 const excludes = Array.isArray( excludeValues ) ? excludeValues : [];
 
@@ -21,10 +22,11 @@ if ( typeof directoryPath !== 'string' || typeof zipPath !== 'string' ) {
                        an archive that includes this base directory.
                        If this option is set to false the archive created will
                        unzip its content to the current directory.                               [bool]
+      --followsymlinks Follow symlinks when traversing directories.                              [bool]
       --exclude        A list with the names of the files and folders to exclude.               [array]` );
 	process.exitCode = 1;
 } else {
-	const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );
+	const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes, followSymlinks );
 	archive.createZip().catch( ( err: unknown ) => {
 		const normalizedError = err instanceof Error ? err : new Error( String( err ) );
 		console.error( normalizedError );

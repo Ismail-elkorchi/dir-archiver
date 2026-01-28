@@ -9,7 +9,9 @@ class DirArchiver {
 	private directoryPath: string;
 	private zipPath: string;
 	private includeBaseDirectory: boolean;
+	private followSymlinks: boolean;
 	private baseDirectory: string;
+	private visitedDirectories: Set<string>;
 	private output!: fs.WriteStream;
 	private archive!: archiver.Archiver;
 
@@ -20,7 +22,13 @@ class DirArchiver {
 	 * @param includeBaseDirectory - Includes a base directory at the root of the archive. For example, if the root folder of your project is named "your-project", setting includeBaseDirectory to true will create an archive that includes this base directory. If this option is set to false the archive created will unzip its content to the current directory.
 	 * @param excludes - The name of the files and foldes to exclude.
 	 */
-	constructor( directoryPath: string, zipPath: string, includeBaseDirectory = false, excludes: string[] = [] ) {
+	constructor(
+		directoryPath: string,
+		zipPath: string,
+		includeBaseDirectory = false,
+		excludes: string[] = [],
+		followSymlinks = false
+	) {
 		// Contains the excluded files and folders.
 		this.excludes = excludes.map( ( element ) => {
 			return path.normalize( element );
@@ -29,7 +37,9 @@ class DirArchiver {
 		this.directoryPath = path.resolve( directoryPath );
 		this.zipPath = path.resolve( zipPath );
 		this.includeBaseDirectory = includeBaseDirectory;
+		this.followSymlinks = followSymlinks;
 		this.baseDirectory = path.basename( this.directoryPath );
+		this.visitedDirectories = new Set();
 
 		const relativeZipPath = path.relative( this.directoryPath, this.zipPath );
 		const isZipInsideSource = relativeZipPath.length > 0
@@ -48,15 +58,44 @@ class DirArchiver {
 	 * @param directoryPath - The path of the directory being looped through.
 	 */
 	private traverseDirectoryTree( directoryPath: string ): void {
+		if ( this.followSymlinks ) {
+			try {
+				const realPath = fs.realpathSync( directoryPath );
+				if ( this.visitedDirectories.has( realPath ) ) {
+					return;
+				}
+				this.visitedDirectories.add( realPath );
+			} catch {
+				return;
+			}
+		}
+
 		const files = fs.readdirSync( directoryPath );
 		for ( const file of files ) {
 			const currentPath = path.join( path.resolve( directoryPath ), file );
 			if ( path.resolve( currentPath ) === this.zipPath ) {
 				continue;
 			}
-			const stats = fs.statSync( currentPath );
 			const relativePath = path.relative( this.directoryPath, currentPath );
-			if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
+			if ( this.excludes.includes( relativePath ) ) {
+				continue;
+			}
+			let stats: fs.Stats;
+			try {
+				const lstats = fs.lstatSync( currentPath );
+				if ( lstats.isSymbolicLink() ) {
+					if ( ! this.followSymlinks ) {
+						continue;
+					}
+					stats = fs.statSync( currentPath );
+				} else {
+					stats = lstats;
+				}
+			} catch {
+				continue;
+			}
+
+			if ( stats.isFile() ) {
 				if ( this.includeBaseDirectory ) {
 					this.archive.file( currentPath, {
 						name: path.join( this.baseDirectory, relativePath )
@@ -66,7 +105,7 @@ class DirArchiver {
 						name: relativePath
 					} );
 				}
-			} else if ( stats.isDirectory() && ! this.excludes.includes( relativePath ) ) {
+			} else if ( stats.isDirectory() ) {
 				this.traverseDirectoryTree( currentPath );
 			}
 		}
@@ -153,6 +192,7 @@ class DirArchiver {
 			this.archive.pipe( this.output );
 
 			// Recursively traverse the directory tree and append the files to the archive.
+			this.visitedDirectories.clear();
 			this.traverseDirectoryTree( this.directoryPath );
 
 			// Finalize the archive.
