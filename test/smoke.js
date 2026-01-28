@@ -61,6 +61,13 @@ const run = async () => {
 		fs.writeFileSync( path.join( nested, 'nested.txt' ), 'nested' );
 		fs.writeFileSync( path.join( nested, 'skip.txt' ), 'skip' );
 
+		const cacheDir = path.join( src, 'cache' );
+		const nestedCacheDir = path.join( nested, 'cache' );
+		fs.mkdirSync( cacheDir );
+		fs.mkdirSync( nestedCacheDir );
+		fs.writeFileSync( path.join( cacheDir, 'cache.txt' ), 'cache' );
+		fs.writeFileSync( path.join( nestedCacheDir, 'nested-cache.txt' ), 'nested-cache' );
+
 		const deepRoot = path.join( src, 'deep' );
 		fs.mkdirSync( deepRoot );
 		let deepCursor = deepRoot;
@@ -139,6 +146,13 @@ const run = async () => {
 		const entriesDeep = await listZipEntries( destDeep );
 		const deepRelative = normalizeEntry( path.relative( src, deepFilePath ) );
 		assert.ok( entriesDeep.includes( deepRelative ), 'deep file should be included' );
+
+		const destNameExclude = path.join( tmpRoot, 'name-exclude.zip' );
+		const archiveNameExclude = new DirArchiver( src, destNameExclude, false, [ 'cache' ] );
+		await archiveNameExclude.createZip();
+		const entriesNameExclude = await listZipEntries( destNameExclude );
+		assert.ok( ! entriesNameExclude.includes( 'cache/cache.txt' ), 'cache directory should be excluded by name' );
+		assert.ok( ! entriesNameExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should be excluded by name' );
 
 		if ( symlinkCreated || symlinkDirCreated || loopSymlinkCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );

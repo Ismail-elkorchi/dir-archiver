@@ -6,6 +6,7 @@ import archiver from 'archiver';
 
 class DirArchiver {
 	private excludedPaths: Set<string>;
+	private excludedNames: Set<string>;
 	private directoryPath: string;
 	private zipPath: string;
 	private includeBaseDirectory: boolean;
@@ -33,7 +34,20 @@ class DirArchiver {
 		const normalizedExcludes = excludes.map( ( element ) => {
 			return path.normalize( element );
 		} );
-		this.excludedPaths = new Set( normalizedExcludes );
+		this.excludedPaths = new Set();
+		this.excludedNames = new Set();
+		for ( const excludeEntry of normalizedExcludes ) {
+			if ( excludeEntry.length === 0 ) {
+				continue;
+			}
+			this.excludedPaths.add( excludeEntry );
+			const hasSeparator = excludeEntry.includes( '/' )
+				|| excludeEntry.includes( '\\' )
+				|| excludeEntry.includes( path.sep );
+			if ( ! hasSeparator ) {
+				this.excludedNames.add( excludeEntry );
+			}
+		}
 
 		this.directoryPath = path.resolve( directoryPath );
 		this.zipPath = path.resolve( zipPath );
@@ -86,9 +100,10 @@ class DirArchiver {
 				}
 				const relativePath = path.relative( this.directoryPath, currentPath );
 				const normalizedRelativePath = path.normalize( relativePath );
-				if ( this.excludedPaths.has( normalizedRelativePath ) ) {
-					continue;
-				}
+			const baseName = path.basename( normalizedRelativePath );
+			if ( this.excludedPaths.has( normalizedRelativePath ) || this.excludedNames.has( baseName ) ) {
+				continue;
+			}
 				let stats: fs.Stats;
 				try {
 					const lstats = fs.lstatSync( currentPath );
