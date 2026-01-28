@@ -14,6 +14,7 @@
 * Honor explicit true/false values for CLI boolean flags.
 * Improve error handling for archive creation failures.
 * Bump argv-flags to 0.2.0.
+* Bump argv-flags to 0.2.1 (inline flag values).
 
 ### 2.1.2 (January 28, 2026)
 
