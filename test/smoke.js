@@ -237,6 +237,15 @@ const run = async () => {
 			await assert.rejects( archiveReadOnly.createZip() );
 			assert.ok( ! fs.existsSync( destReadOnly ), 'archive should not exist when destination is not writable' );
 			fs.chmodSync( readOnlyDir, 0o755 );
+
+			const unreadableFile = path.join( src, 'unreadable.txt' );
+			fs.writeFileSync( unreadableFile, 'secret' );
+			fs.chmodSync( unreadableFile, 0 );
+			const destUnreadable = path.join( tmpRoot, 'unreadable.zip' );
+			const archiveUnreadable = new DirArchiver( src, destUnreadable, false, [] );
+			await assert.rejects( archiveUnreadable.createZip() );
+			assert.ok( ! fs.existsSync( destUnreadable ), 'archive should be cleaned up when a file is unreadable' );
+			fs.chmodSync( unreadableFile, 0o644 );
 		}
 	} finally {
 		removeDir( tmpRoot );
