@@ -9,6 +9,7 @@
 * CLI exits with a non-zero status when required arguments are missing.
 * Add a CLI smoke test.
 * Skip symlinks by default and add an option to follow them.
+* Exclude entries by name anywhere unless a relative path is specified.
 
 ### 2.1.2 (January 28, 2026)
 
