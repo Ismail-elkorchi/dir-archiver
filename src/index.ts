@@ -92,9 +92,9 @@ class DirArchiver {
 			}
 
 			const resolvedDirectoryPath = path.resolve( nextDirectory );
-			const files = fs.readdirSync( resolvedDirectoryPath );
-			for ( const file of files ) {
-				const currentPath = path.join( resolvedDirectoryPath, file );
+			const entries = fs.readdirSync( resolvedDirectoryPath, { withFileTypes: true } );
+			for ( const entry of entries ) {
+				const currentPath = path.join( resolvedDirectoryPath, entry.name );
 				if ( currentPath === this.zipPath ) {
 					continue;
 				}
@@ -105,22 +105,7 @@ class DirArchiver {
 				if ( this.excludedPaths.has( normalizedRelativePath ) || this.excludedNames.has( baseName ) ) {
 					continue;
 				}
-				let stats: fs.Stats;
-				try {
-					const lstats = fs.lstatSync( currentPath );
-					if ( lstats.isSymbolicLink() ) {
-						if ( ! this.followSymlinks ) {
-							continue;
-						}
-						stats = fs.statSync( currentPath );
-					} else {
-						stats = lstats;
-					}
-				} catch {
-					continue;
-				}
-
-				if ( stats.isFile() ) {
+				if ( entry.isFile() ) {
 					if ( this.includeBaseDirectory ) {
 						archive.file( currentPath, {
 							name: path.posix.join( this.baseDirectory, archiveRelativePath )
@@ -130,8 +115,31 @@ class DirArchiver {
 							name: archiveRelativePath
 						} );
 					}
-				} else if ( stats.isDirectory() ) {
+				} else if ( entry.isDirectory() ) {
 					directoriesToVisit.push( currentPath );
+				} else if ( entry.isSymbolicLink() ) {
+					if ( ! this.followSymlinks ) {
+						continue;
+					}
+					let stats: fs.Stats;
+					try {
+						stats = fs.statSync( currentPath );
+					} catch {
+						continue;
+					}
+					if ( stats.isFile() ) {
+						if ( this.includeBaseDirectory ) {
+							archive.file( currentPath, {
+								name: path.posix.join( this.baseDirectory, archiveRelativePath )
+							} );
+						} else {
+							archive.file( currentPath, {
+								name: archiveRelativePath
+							} );
+						}
+					} else if ( stats.isDirectory() ) {
+						directoriesToVisit.push( currentPath );
+					}
 				}
 			}
 		}
