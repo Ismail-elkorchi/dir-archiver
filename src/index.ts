@@ -184,6 +184,13 @@ class DirArchiver {
 				} catch {
 					// Ignore destroy errors.
 				}
+				try {
+					if ( fs.existsSync( this.zipPath ) ) {
+						fs.unlinkSync( this.zipPath );
+					}
+				} catch {
+					// Ignore cleanup errors.
+				}
 				const normalizedError = err instanceof Error ? err : new Error( String( err ) );
 				reject( normalizedError );
 			};
@@ -246,7 +253,9 @@ class DirArchiver {
 			}
 
 			// Finalize the archive.
-			void archive.finalize();
+			void Promise.resolve( archive.finalize() ).catch( ( err: unknown ) => {
+				safeReject( err );
+			} );
 		} );
 	}
 }

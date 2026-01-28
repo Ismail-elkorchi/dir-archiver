@@ -182,6 +182,12 @@ const run = async () => {
 		await assert.rejects( archiveMissingDir.createZip(), /ENOENT/ );
 		assert.ok( ! fs.existsSync( destMissingDir ), 'archive should not be created when destination directory is missing' );
 
+		const missingSource = path.join( tmpRoot, 'missing-src' );
+		const destMissingSource = path.join( tmpRoot, 'missing-src.zip' );
+		const archiveMissingSource = new DirArchiver( missingSource, destMissingSource, false, [] );
+		await assert.rejects( archiveMissingSource.createZip(), /ENOENT/ );
+		assert.ok( ! fs.existsSync( destMissingSource ), 'archive should be cleaned up when source directory is missing' );
+
 		const destOutside = path.join( tmpRoot, 'outside.zip' );
 		const archiveOutside = new DirArchiver( src, destOutside, true, [] );
 		await archiveOutside.createZip();
