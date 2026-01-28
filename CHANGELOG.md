@@ -10,6 +10,9 @@
 * Add a CLI smoke test.
 * Skip symlinks by default and add an option to follow them.
 * Exclude entries by name anywhere unless a relative path is specified.
+* Normalize archive entry paths to forward slashes for cross-platform zip compatibility.
+* Honor explicit true/false values for CLI boolean flags.
+* Improve error handling for archive creation failures.
 
 ### 2.1.2 (January 28, 2026)
 
