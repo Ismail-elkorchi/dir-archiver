@@ -3,10 +3,24 @@
 import DirArchiver from './index';
 import parseArgs from 'argv-flags';
 
+const parseBooleanFlag = ( flag: string ): boolean => {
+	const rawValue = parseArgs( flag, 'string' );
+	if ( typeof rawValue === 'string' && rawValue.length > 0 && ! rawValue.startsWith( '-' ) ) {
+		const normalized = rawValue.toLowerCase();
+		if ( normalized === 'true' ) {
+			return true;
+		}
+		if ( normalized === 'false' ) {
+			return false;
+		}
+	}
+	return parseArgs( flag, 'boolean' ) === true;
+};
+
 const directoryPath = parseArgs( '--src', 'string' );
 const zipPath = parseArgs( '--dest', 'string' );
-const includeBaseDirectory = parseArgs( '--includebasedir', 'boolean' ) === true;
-const followSymlinks = parseArgs( '--followsymlinks', 'boolean' ) === true;
+const includeBaseDirectory = parseBooleanFlag( '--includebasedir' );
+const followSymlinks = parseBooleanFlag( '--followsymlinks' );
 const excludeValues = parseArgs( '--exclude', 'array' );
 const excludes = Array.isArray( excludeValues ) ? excludeValues : [];
 
