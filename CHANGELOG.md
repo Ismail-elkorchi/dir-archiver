@@ -4,7 +4,8 @@
 
 * Migrate source to TypeScript with strict compiler options.
 * Build compiled output into `dist/` with declaration files.
-* Replace ESLint linting with TypeScript typechecking in CI.
+* Add strict ESLint configuration alongside TypeScript typechecking.
+* Require Node.js >=18.
 
 ### 2.1.2 (January 28, 2026)
 
