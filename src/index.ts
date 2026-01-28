@@ -7,6 +7,7 @@ import archiver from 'archiver';
 class DirArchiver {
 	private excludedPaths: Set<string>;
 	private excludedNames: Set<string>;
+	private caseInsensitiveExcludes: boolean;
 	private directoryPath: string;
 	private zipPath: string;
 	private includeBaseDirectory: boolean;
@@ -28,11 +29,38 @@ class DirArchiver {
 		excludes: string[] = [],
 		followSymlinks = false
 	) {
+		this.directoryPath = path.resolve( directoryPath );
+		this.zipPath = path.resolve( zipPath );
+		this.includeBaseDirectory = includeBaseDirectory;
+		this.followSymlinks = followSymlinks;
+		this.baseDirectory = path.basename( this.directoryPath );
+		this.visitedDirectories = new Set();
+		this.caseInsensitiveExcludes = process.platform === 'win32';
+
 		// Contains the excluded files and folders.
 		this.excludedPaths = new Set();
 		this.excludedNames = new Set();
 		for ( const excludeRaw of excludes ) {
-			const normalizedExclude = path.normalize( excludeRaw.replace( /\\/g, path.sep ) );
+			if ( typeof excludeRaw !== 'string' ) {
+				continue;
+			}
+			const trimmedRaw = excludeRaw.trim();
+			if ( trimmedRaw.length === 0 ) {
+				continue;
+			}
+			let normalizedExclude = path.normalize( trimmedRaw.replace( /\\/g, path.sep ) );
+			if ( normalizedExclude === '.' || normalizedExclude === path.sep ) {
+				continue;
+			}
+			if ( path.isAbsolute( normalizedExclude ) ) {
+				const relativeCandidate = path.relative( this.directoryPath, normalizedExclude );
+				const isInsideSource = relativeCandidate.length > 0
+					&& ! relativeCandidate.startsWith( '..' )
+					&& ! path.isAbsolute( relativeCandidate );
+				if ( isInsideSource ) {
+					normalizedExclude = path.normalize( relativeCandidate );
+				}
+			}
 			if ( normalizedExclude.length === 0 ) {
 				continue;
 			}
@@ -40,21 +68,15 @@ class DirArchiver {
 				|| normalizedExclude.includes( '\\' )
 				|| normalizedExclude.includes( path.sep );
 			const trimmedExclude = normalizedExclude.replace( /[\\/]+$/g, '' );
-			if ( trimmedExclude.length === 0 ) {
+			if ( trimmedExclude.length === 0 || trimmedExclude === '.' ) {
 				continue;
 			}
-			this.excludedPaths.add( trimmedExclude );
+			const normalizedValue = this.normalizeExcludeValue( trimmedExclude );
+			this.excludedPaths.add( normalizedValue );
 			if ( ! hasSeparator ) {
-				this.excludedNames.add( trimmedExclude );
+				this.excludedNames.add( normalizedValue );
 			}
 		}
-
-		this.directoryPath = path.resolve( directoryPath );
-		this.zipPath = path.resolve( zipPath );
-		this.includeBaseDirectory = includeBaseDirectory;
-		this.followSymlinks = followSymlinks;
-		this.baseDirectory = path.basename( this.directoryPath );
-		this.visitedDirectories = new Set();
 
 		const relativeZipPath = path.relative( this.directoryPath, this.zipPath );
 		const isZipInsideSource = relativeZipPath.length > 0
@@ -62,7 +84,7 @@ class DirArchiver {
 			&& ! path.isAbsolute( relativeZipPath );
 		if ( isZipInsideSource ) {
 			const normalizedZipPath = path.normalize( relativeZipPath );
-			this.excludedPaths.add( normalizedZipPath );
+			this.excludedPaths.add( this.normalizeExcludeValue( normalizedZipPath ) );
 		}
 	}
 
@@ -93,6 +115,15 @@ class DirArchiver {
 
 			const resolvedDirectoryPath = path.resolve( nextDirectory );
 			const entries = fs.readdirSync( resolvedDirectoryPath, { withFileTypes: true } );
+			entries.sort( ( firstEntry, secondEntry ) => {
+				if ( firstEntry.name < secondEntry.name ) {
+					return -1;
+				}
+				if ( firstEntry.name > secondEntry.name ) {
+					return 1;
+				}
+				return 0;
+			} );
 			for ( const entry of entries ) {
 				const currentPath = path.join( resolvedDirectoryPath, entry.name );
 				if ( currentPath === this.zipPath ) {
@@ -102,7 +133,9 @@ class DirArchiver {
 				const normalizedRelativePath = path.normalize( relativePath );
 				const archiveRelativePath = normalizedRelativePath.replace( /\\/g, '/' );
 				const baseName = path.basename( normalizedRelativePath );
-				if ( this.excludedPaths.has( normalizedRelativePath ) || this.excludedNames.has( baseName ) ) {
+				const normalizedPathValue = this.normalizeExcludeValue( normalizedRelativePath );
+				const normalizedNameValue = this.normalizeExcludeValue( baseName );
+				if ( this.excludedPaths.has( normalizedPathValue ) || this.excludedNames.has( normalizedNameValue ) ) {
 					continue;
 				}
 				if ( entry.isFile() ) {
@@ -159,6 +192,10 @@ class DirArchiver {
 			return `${gigaBytes} GB`;
 		}
 		return `${bytes} bytes`;
+	}
+
+	private normalizeExcludeValue( value: string ): string {
+		return this.caseInsensitiveExcludes ? value.toLowerCase() : value;
 	}
 
 	createZip(): Promise<string> {

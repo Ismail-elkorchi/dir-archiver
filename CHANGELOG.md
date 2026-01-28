@@ -11,7 +11,10 @@
 * Skip symlinks by default and add an option to follow them.
 * Exclude entries by name anywhere unless a relative path is specified.
 * Normalize exclude path separators so Windows-style paths work cross-platform.
+* Accept absolute exclude paths when they resolve inside the source tree.
+* Make exclude matching case-insensitive on Windows.
 * Normalize archive entry paths to forward slashes for cross-platform zip compatibility.
+* Traverse entries in deterministic order.
 * Honor explicit true/false values for CLI boolean flags.
 * Improve error handling for archive creation failures.
 * Bump argv-flags to 0.2.0.

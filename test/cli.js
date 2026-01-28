@@ -7,6 +7,8 @@ const os = require( 'os' );
 const path = require( 'path' );
 const yauzl = require( 'yauzl' );
 
+const isWindows = process.platform === 'win32';
+
 const runCli = ( args ) => spawnSync(
 	process.execPath,
 	[ path.join( __dirname, '..', 'dist', 'cli.js' ), ...args ],
@@ -102,6 +104,18 @@ const run = async () => {
 		fs.mkdirSync( nestedCacheDir );
 		fs.writeFileSync( path.join( nestedCacheDir, 'nested-cache.txt' ), 'nested-cache' );
 
+		const destExcludeAbsolute = path.join( tmpRoot, 'exclude-absolute.zip' );
+		const absoluteSkipPath = path.join( nestedDir, 'skip.txt' );
+		const excludeAbsoluteResult = runCli( [
+			'--src', src,
+			'--dest', destExcludeAbsolute,
+			'--exclude', absoluteSkipPath
+		] );
+		assert.strictEqual( excludeAbsoluteResult.status, 0, 'CLI should succeed with absolute exclude values' );
+		const entriesExcludeAbsolute = await listZipEntries( destExcludeAbsolute );
+		assert.ok( ! entriesExcludeAbsolute.includes( 'nested/skip.txt' ), 'absolute exclude should remove nested skip file' );
+		assert.ok( entriesExcludeAbsolute.includes( 'nested/nested.txt' ), 'absolute exclude should not remove nested files' );
+
 		const destExcludeWin = path.join( tmpRoot, 'exclude-win.zip' );
 		const windowsNestedCache = `${path.win32.join( 'nested', 'cache' )}\\`;
 		const windowsSkip = `.\\${path.win32.join( 'nested', 'skip.txt' )}`;
@@ -132,6 +146,18 @@ const run = async () => {
 		assert.ok( ! entriesIncludeWin.includes( `${baseName}/nested/cache/nested-cache.txt` ), 'includeBaseDirectory should still exclude nested cache directory' );
 		assert.ok( entriesIncludeWin.includes( `${baseName}/nested/nested.txt` ), 'includeBaseDirectory should keep nested files' );
 		assert.ok( entriesIncludeWin.includes( `${baseName}/cache/cache.txt` ), 'includeBaseDirectory should keep root cache when excluding nested cache' );
+
+		if ( isWindows ) {
+			const destCaseExclude = path.join( tmpRoot, 'case-exclude.zip' );
+			const caseExcludeResult = runCli( [
+				'--src', src,
+				'--dest', destCaseExclude,
+				'--exclude', 'ROOT.TXT'
+			] );
+			assert.strictEqual( caseExcludeResult.status, 0, 'CLI should succeed with case-insensitive excludes on Windows' );
+			const entriesCaseExclude = await listZipEntries( destCaseExclude );
+			assert.ok( ! entriesCaseExclude.includes( 'root.txt' ), 'Windows excludes should be case-insensitive for names' );
+		}
 
 		let symlinkCreated = false;
 		const externalTarget = path.join( tmpRoot, 'external.txt' );
