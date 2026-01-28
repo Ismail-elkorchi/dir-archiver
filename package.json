@@ -1,6 +1,6 @@
 {
   "name": "dir-archiver",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
   "license": "MIT",
   "main": "index.js",
@@ -37,7 +37,7 @@
     "lint:fix": "eslint --fix cli.js index.js"
   },
   "dependencies": {
-    "archiver": "^5.3.1",
+    "archiver": "^7.0.1",
     "argv-flags": "^0.1.1"
   },
   "devDependencies": {

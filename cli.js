@@ -25,4 +25,7 @@ if ( directoryPath === false || zipPath === false ) {
 }
 
 const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes );
-archive.createZip();
+archive.createZip().catch( ( err ) => {
+	console.error( err );
+	process.exitCode = 1;
+} );

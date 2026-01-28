@@ -15,7 +15,8 @@ class DirArchiver {
 	constructor( directoryPath, zipPath, includeBaseDirectory, excludes ) {
 
 		// Contains the excluded files and folders.
-		this.excludes = excludes.map( ( element ) => {
+		const safeExcludes = Array.isArray( excludes ) ? excludes : [];
+		this.excludes = safeExcludes.map( ( element ) => {
 			return path.normalize( element );
 		} );
 
@@ -26,6 +27,15 @@ class DirArchiver {
 		this.includeBaseDirectory = includeBaseDirectory;
 
 		this.baseDirectory = path.basename( this.directoryPath );
+
+		const relativeZipPath = path.relative( this.directoryPath, this.zipPath );
+		const isZipInsideSource = relativeZipPath && ! relativeZipPath.startsWith( '..' ) && ! path.isAbsolute( relativeZipPath );
+		if ( isZipInsideSource ) {
+			const normalizedZipPath = path.normalize( relativeZipPath );
+			if ( ! this.excludes.includes( normalizedZipPath ) ) {
+				this.excludes.push( normalizedZipPath );
+			}
+		}
 	}
 
 	/**
@@ -34,8 +44,11 @@ class DirArchiver {
 	 */
 	traverseDirectoryTree( directoryPath ) {
 		const files = fs.readdirSync( directoryPath );
-		for ( const i in files ) {
-			const currentPath = path.join( path.resolve( directoryPath ), files[ i ] );
+		for ( const file of files ) {
+			const currentPath = path.join( path.resolve( directoryPath ), file );
+			if ( path.resolve( currentPath ) === this.zipPath ) {
+				continue;
+			}
 			const stats = fs.statSync( currentPath );
 			let relativePath = path.relative( this.directoryPath, currentPath );
 			if ( stats.isFile() && ! this.excludes.includes( relativePath ) ) {
@@ -68,46 +81,73 @@ class DirArchiver {
 	}
 
 	createZip () {
-		// Remove the destination zip if it exists.
-		// see : https://github.com/Ismail-elkorchi/dir-archiver/issues/5
-		if ( fs.existsSync( this.zipPath ) ) {
-			fs.unlinkSync( this.zipPath );
-		}
-		// Create a file to stream archive data to.
-		this.output = fs.createWriteStream( this.zipPath );
-		this.archive = archiver( 'zip', {
-			zlib: { level: 9 }
-		} );
+		return new Promise( ( resolve, reject ) => {
+			let settled = false;
+			const safeResolve = ( value ) => {
+				if ( settled ) {
+					return;
+				}
+				settled = true;
+				resolve( value );
+			};
+			const safeReject = ( err ) => {
+				if ( settled ) {
+					return;
+				}
+				settled = true;
+				reject( err );
+			};
 
-		// Catch warnings during archiving.
-		this.archive.on( 'warning', function( err ) {
-			if ( err.code === 'ENOENT' ) {
-				// log warning
-				console.log( err );
-			} else {
-				// throw error
-				throw err;
+			// Remove the destination zip if it exists.
+			// see : https://github.com/Ismail-elkorchi/dir-archiver/issues/5
+			try {
+				if ( fs.existsSync( this.zipPath ) ) {
+					fs.unlinkSync( this.zipPath );
+				}
+			} catch ( err ) {
+				safeReject( err );
+				return;
 			}
-		} );
 
-		// Catch errors during archiving.
-		this.archive.on( 'error', function( err ) {
-			throw err;
-		} );
+			// Create a file to stream archive data to.
+			this.output = fs.createWriteStream( this.zipPath );
+			this.archive = archiver( 'zip', {
+				zlib: { level: 9 }
+			} );
 
-		// Pipe archive data to the file.
-		this.archive.pipe( this.output );
+			// Catch warnings during archiving.
+			this.archive.on( 'warning', ( err ) => {
+				if ( err.code === 'ENOENT' ) {
+					// log warning
+					console.log( err );
+				} else {
+					safeReject( err );
+				}
+			} );
 
-		// Recursively traverse the directory tree and append the files to the archive.
-		this.traverseDirectoryTree( this.directoryPath );
+			// Catch errors during archiving.
+			this.archive.on( 'error', ( err ) => {
+				safeReject( err );
+			} );
 
-		// Finalize the archive.
-		this.archive.finalize();
+			this.output.on( 'error', ( err ) => {
+				safeReject( err );
+			} );
 
-		const self = this;
-		// Listen for all archive data to be written.
-		this.output.on( 'close', function () {
-			console.log( `Created ${self.zipPath} of ${self.prettyBytes( self.archive.pointer() )}` );
+			// Listen for all archive data to be written.
+			this.output.on( 'close', () => {
+				console.log( `Created ${this.zipPath} of ${this.prettyBytes( this.archive.pointer() )}` );
+				safeResolve( this.zipPath );
+			} );
+
+			// Pipe archive data to the file.
+			this.archive.pipe( this.output );
+
+			// Recursively traverse the directory tree and append the files to the archive.
+			this.traverseDirectoryTree( this.directoryPath );
+
+			// Finalize the archive.
+			this.archive.finalize();
 		} );
 	}
 }

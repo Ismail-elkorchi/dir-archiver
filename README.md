@@ -35,7 +35,14 @@ const excludes = ['directory_name', 'file.extension'];
 var archive = new DirArchiver('path/to/directory', 'path/to/desination/zipfile.zip', true, excludes);
 
 // Create the zip file.
-archive.createZip();
+archive.createZip().then(() => {
+  console.log('Archive ready');
+}).catch((err) => {
+  console.error(err);
+});
+
+// Or with async/await:
+// await archive.createZip();
 ```
 ## Command Line Interface
 

@@ -1,5 +1,11 @@
 # Changes to Dir Archiver
 
+### 2.1.1 (January 28, 2026)
+
+* Avoid archiving the destination zip when it lives inside the source directory ([#5](https://github.com/Ismail-elkorchi/dir-archiver/issues/5)).
+* `createZip()` now returns a Promise that resolves when the archive is closed ([#13](https://github.com/Ismail-elkorchi/dir-archiver/issues/13)).
+* Bump archiver to 7.0.1 to address dependency deprecation warnings ([#14](https://github.com/Ismail-elkorchi/dir-archiver/issues/14)).
+
 ### 2.1.0 (October 25, 2022)
 
 * Add ESLint ([#12](https://github.com/Ismail-elkorchi/dir-archiver/pull/12)).
