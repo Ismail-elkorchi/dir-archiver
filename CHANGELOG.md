@@ -6,6 +6,8 @@
 * Build compiled output into `dist/` with declaration files.
 * Add strict ESLint configuration alongside TypeScript typechecking.
 * Require Node.js >=18.
+* CLI exits with a non-zero status when required arguments are missing.
+* Add a CLI smoke test.
 
 ### 2.1.2 (January 28, 2026)
 

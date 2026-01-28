@@ -76,6 +76,8 @@ $ npm run build
 $ npm run lint
 ```
 
+Linting runs TypeScript typechecking and ESLint. CI runs lint and tests on Node 18/20/22.
+
 
 
 [changelog-image]: https://img.shields.io/badge/changelog-md-blue.svg?style=flat-square
