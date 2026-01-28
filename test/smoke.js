@@ -59,6 +59,18 @@ const run = async () => {
 
 		fs.writeFileSync( path.join( src, 'root.txt' ), 'root' );
 		fs.writeFileSync( path.join( nested, 'nested.txt' ), 'nested' );
+		fs.writeFileSync( path.join( nested, 'skip.txt' ), 'skip' );
+
+		const deepRoot = path.join( src, 'deep' );
+		fs.mkdirSync( deepRoot );
+		let deepCursor = deepRoot;
+		for ( let i = 0; i < 40; i++ ) {
+			const next = path.join( deepCursor, `level-${i}` );
+			fs.mkdirSync( next );
+			deepCursor = next;
+		}
+		const deepFilePath = path.join( deepCursor, 'deep.txt' );
+		fs.writeFileSync( deepFilePath, 'deep' );
 
 		let symlinkCreated = false;
 		const externalTarget = path.join( tmpRoot, 'external.txt' );
@@ -69,6 +81,19 @@ const run = async () => {
 			symlinkCreated = true;
 		} catch {
 			symlinkCreated = false;
+		}
+
+		let symlinkDirCreated = false;
+		const externalDir = path.join( tmpRoot, 'external-dir' );
+		const externalDirFile = path.join( externalDir, 'external.txt' );
+		fs.mkdirSync( externalDir );
+		fs.writeFileSync( externalDirFile, 'external-dir' );
+		const symlinkDirPath = path.join( src, 'linked-external' );
+		try {
+			fs.symlinkSync( externalDir, symlinkDirPath, 'dir' );
+			symlinkDirCreated = true;
+		} catch {
+			symlinkDirCreated = false;
 		}
 
 		const destInside = path.join( src, 'archive.zip' );
@@ -84,13 +109,36 @@ const run = async () => {
 		if ( symlinkCreated ) {
 			assert.ok( ! entriesInside.includes( 'external-link.txt' ), 'symlink should be skipped by default' );
 		}
+		if ( symlinkDirCreated ) {
+			assert.ok( ! entriesInside.some( ( entry ) => entry.startsWith( 'linked-external/' ) ), 'symlinked directories should be skipped by default' );
+		}
 
-		if ( symlinkCreated ) {
+		const fileExcludePath = path.join( 'nested', 'skip.txt' );
+		const destExclude = path.join( tmpRoot, 'exclude.zip' );
+		const archiveExclude = new DirArchiver( src, destExclude, false, [ fileExcludePath ] );
+		await archiveExclude.createZip();
+		const entriesExclude = await listZipEntries( destExclude );
+		assert.ok( entriesExclude.includes( 'nested/nested.txt' ), 'nested.txt should be included when only excluding skip.txt' );
+		assert.ok( ! entriesExclude.includes( 'nested/skip.txt' ), 'skip.txt should be excluded by file path' );
+
+		const destDeep = path.join( tmpRoot, 'deep.zip' );
+		const archiveDeep = new DirArchiver( src, destDeep, false, [] );
+		await archiveDeep.createZip();
+		const entriesDeep = await listZipEntries( destDeep );
+		const deepRelative = normalizeEntry( path.relative( src, deepFilePath ) );
+		assert.ok( entriesDeep.includes( deepRelative ), 'deep file should be included' );
+
+		if ( symlinkCreated || symlinkDirCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );
 			const archiveFollow = new DirArchiver( src, destFollow, false, [], true );
 			await archiveFollow.createZip();
 			const entriesFollow = await listZipEntries( destFollow );
-			assert.ok( entriesFollow.includes( 'external-link.txt' ), 'symlink should be included when following symlinks' );
+			if ( symlinkCreated ) {
+				assert.ok( entriesFollow.includes( 'external-link.txt' ), 'symlink should be included when following symlinks' );
+			}
+			if ( symlinkDirCreated ) {
+				assert.ok( entriesFollow.includes( 'linked-external/external.txt' ), 'symlinked directories should be included when following symlinks' );
+			}
 		}
 
 		const destOutside = path.join( tmpRoot, 'outside.zip' );
