@@ -1,13 +1,14 @@
-'use strict';
-
-const assert = require( 'assert' );
-const { spawnSync } = require( 'child_process' );
-const fs = require( 'fs' );
-const os = require( 'os' );
-const path = require( 'path' );
-const yauzl = require( 'yauzl' );
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import yauzl from 'yauzl';
 
 const isWindows = process.platform === 'win32';
+const __filename = fileURLToPath( import.meta.url );
+const __dirname = path.dirname( __filename );
 
 const runCli = ( args ) => spawnSync(
 	process.execPath,
@@ -183,6 +184,12 @@ const run = async () => {
 			const entriesNoFollow = await listZipEntries( destNoFollow );
 			assert.ok( ! entriesNoFollow.includes( 'external-link.txt' ), 'followsymlinks false should skip symlinked files' );
 		}
+
+		const jsonResult = runCli( [ '--src', src, '--dest', path.join( tmpRoot, 'json.zip' ), '--json' ] );
+		assert.strictEqual( jsonResult.status, 0, 'CLI should succeed with --json' );
+		const jsonOutput = JSON.parse( jsonResult.stdout );
+		assert.strictEqual( jsonOutput.ok, true );
+		assert.ok( jsonOutput.report );
 	} finally {
 		removeDir( tmpRoot );
 	}

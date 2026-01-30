@@ -1,11 +1,9 @@
-'use strict';
-
-const assert = require( 'assert' );
-const fs = require( 'fs' );
-const os = require( 'os' );
-const path = require( 'path' );
-const yauzl = require( 'yauzl' );
-const DirArchiver = require( '../dist/index' );
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import yauzl from 'yauzl';
+import { createArchive, DirArchiver } from '../dist/index.js';
 
 const isWindows = process.platform === 'win32';
 
@@ -147,8 +145,12 @@ const run = async () => {
 		}
 
 		const destInside = path.join( src, 'archive.zip' );
-		const archiveInside = new DirArchiver( src, destInside, false, [ 'nested' ] );
-		await archiveInside.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destInside,
+			includeBaseDirectory: false,
+			excludes: [ 'nested' ]
+		} );
 
 		assert.ok( fs.existsSync( destInside ), 'archive should be created' );
 
@@ -172,59 +174,90 @@ const run = async () => {
 
 		const fileExcludePath = path.join( 'nested', 'skip.txt' );
 		const destExclude = path.join( tmpRoot, 'exclude.zip' );
-		const archiveExclude = new DirArchiver( src, destExclude, false, [ fileExcludePath ] );
-		await archiveExclude.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destExclude,
+			includeBaseDirectory: false,
+			excludes: [ fileExcludePath ]
+		} );
 		const entriesExclude = await listZipEntries( destExclude );
 		assert.ok( entriesExclude.includes( 'nested/nested.txt' ), 'nested.txt should be included when only excluding skip.txt' );
 		assert.ok( ! entriesExclude.includes( 'nested/skip.txt' ), 'skip.txt should be excluded by file path' );
 
 		const absoluteSkipPath = path.join( nested, 'skip.txt' );
 		const destAbsoluteExclude = path.join( tmpRoot, 'absolute-exclude.zip' );
-		const archiveAbsoluteExclude = new DirArchiver( src, destAbsoluteExclude, false, [ absoluteSkipPath ] );
-		await archiveAbsoluteExclude.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destAbsoluteExclude,
+			includeBaseDirectory: false,
+			excludes: [ absoluteSkipPath ]
+		} );
 		const entriesAbsoluteExclude = await listZipEntries( destAbsoluteExclude );
 		assert.ok( ! entriesAbsoluteExclude.includes( 'nested/skip.txt' ), 'absolute exclude path should remove nested skip file' );
 		assert.ok( entriesAbsoluteExclude.includes( 'nested/nested.txt' ), 'absolute exclude path should not remove nested.txt' );
 
 		const destDeep = path.join( tmpRoot, 'deep.zip' );
-		const archiveDeep = new DirArchiver( src, destDeep, false, [] );
-		await archiveDeep.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destDeep,
+			includeBaseDirectory: false
+		} );
 		const entriesDeep = await listZipEntries( destDeep );
 		const deepRelative = normalizeEntry( path.relative( src, deepFilePath ) );
 		assert.ok( entriesDeep.includes( deepRelative ), 'deep file should be included' );
 
 		const destNameExclude = path.join( tmpRoot, 'name-exclude.zip' );
-		const archiveNameExclude = new DirArchiver( src, destNameExclude, false, [ 'cache' ] );
-		await archiveNameExclude.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destNameExclude,
+			includeBaseDirectory: false,
+			excludes: [ 'cache' ]
+		} );
 		const entriesNameExclude = await listZipEntries( destNameExclude );
 		assert.ok( ! entriesNameExclude.includes( 'cache/cache.txt' ), 'cache directory should be excluded by name' );
 		assert.ok( ! entriesNameExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should be excluded by name' );
 
 		const destNameExcludeFile = path.join( tmpRoot, 'name-exclude-file.zip' );
-		const archiveNameExcludeFile = new DirArchiver( src, destNameExcludeFile, false, [ 'root.txt' ] );
-		await archiveNameExcludeFile.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destNameExcludeFile,
+			includeBaseDirectory: false,
+			excludes: [ 'root.txt' ]
+		} );
 		const entriesNameExcludeFile = await listZipEntries( destNameExcludeFile );
 		assert.ok( ! entriesNameExcludeFile.includes( 'root.txt' ), 'root.txt should be excluded by name' );
 		assert.ok( ! entriesNameExcludeFile.includes( 'nested/root.txt' ), 'nested root.txt should be excluded by name' );
 
 		if ( isWindows ) {
 			const destCaseInsensitive = path.join( tmpRoot, 'case-insensitive.zip' );
-			const archiveCaseInsensitive = new DirArchiver( src, destCaseInsensitive, false, [ 'ROOT.TXT' ] );
-			await archiveCaseInsensitive.createZip();
+			await createArchive( {
+				sourceDir: src,
+				destZip: destCaseInsensitive,
+				includeBaseDirectory: false,
+				excludes: [ 'ROOT.TXT' ]
+			} );
 			const entriesCaseInsensitive = await listZipEntries( destCaseInsensitive );
 			assert.ok( ! entriesCaseInsensitive.includes( 'root.txt' ), 'Windows excludes should be case-insensitive for names' );
 		}
 
 		const destPathExclude = path.join( tmpRoot, 'path-exclude.zip' );
-		const archivePathExclude = new DirArchiver( src, destPathExclude, false, [ 'cache/' ] );
-		await archivePathExclude.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destPathExclude,
+			includeBaseDirectory: false,
+			excludes: [ 'cache/' ]
+		} );
 		const entriesPathExclude = await listZipEntries( destPathExclude );
 		assert.ok( ! entriesPathExclude.includes( 'cache/cache.txt' ), 'root cache directory should be excluded by path' );
 		assert.ok( entriesPathExclude.includes( 'nested/cache/nested-cache.txt' ), 'nested cache directory should remain when excluding root cache by path' );
 
 		const destWindowsExclude = path.join( tmpRoot, 'windows-exclude.zip' );
-		const archiveWindowsExclude = new DirArchiver( src, destWindowsExclude, false, [ 'nested\\\\skip.txt', 'cache\\\\' ] );
-		await archiveWindowsExclude.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destWindowsExclude,
+			includeBaseDirectory: false,
+			excludes: [ 'nested\\\\skip.txt', 'cache\\\\' ]
+		} );
 		const entriesWindowsExclude = await listZipEntries( destWindowsExclude );
 		assert.ok( ! entriesWindowsExclude.includes( 'nested/skip.txt' ), 'windows-style path should exclude nested skip file' );
 		assert.ok( ! entriesWindowsExclude.includes( 'cache/cache.txt' ), 'windows-style path should exclude root cache directory' );
@@ -233,8 +266,12 @@ const run = async () => {
 		const destWindowsMixedExclude = path.join( tmpRoot, 'windows-mixed-exclude.zip' );
 		const windowsNestedCache = `${path.win32.join( 'nested', 'cache' )}\\`;
 		const windowsSkip = `.\\${path.win32.join( 'nested', 'skip.txt' )}`;
-		const archiveWindowsMixedExclude = new DirArchiver( src, destWindowsMixedExclude, false, [ windowsNestedCache, windowsSkip ] );
-		await archiveWindowsMixedExclude.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destWindowsMixedExclude,
+			includeBaseDirectory: false,
+			excludes: [ windowsNestedCache, windowsSkip ]
+		} );
 		const entriesWindowsMixedExclude = await listZipEntries( destWindowsMixedExclude );
 		assert.ok( ! entriesWindowsMixedExclude.includes( 'nested/cache/nested-cache.txt' ), 'windows-style mixed separators should exclude nested cache directory' );
 		assert.ok( ! entriesWindowsMixedExclude.includes( 'nested/skip.txt' ), 'windows-style mixed separators should exclude nested skip file' );
@@ -243,8 +280,12 @@ const run = async () => {
 
 		if ( symlinkCreated || symlinkDirCreated || loopSymlinkCreated ) {
 			const destFollow = path.join( tmpRoot, 'follow.zip' );
-			const archiveFollow = new DirArchiver( src, destFollow, false, [], true );
-			await archiveFollow.createZip();
+			await createArchive( {
+				sourceDir: src,
+				destZip: destFollow,
+				includeBaseDirectory: false,
+				followSymlinks: true
+			} );
 			const entriesFollow = await listZipEntries( destFollow );
 			if ( symlinkCreated ) {
 				assert.ok( entriesFollow.includes( 'external-link.txt' ), 'symlink should be included when following symlinks' );
@@ -258,19 +299,32 @@ const run = async () => {
 		}
 
 		const destMissingDir = path.join( tmpRoot, 'missing-dir', 'archive.zip' );
-		const archiveMissingDir = new DirArchiver( src, destMissingDir, false, [] );
-		await assert.rejects( archiveMissingDir.createZip(), /ENOENT/ );
+		await assert.rejects( async () => {
+			await createArchive( {
+				sourceDir: src,
+				destZip: destMissingDir,
+				includeBaseDirectory: false
+			} );
+		}, /ENOENT/ );
 		assert.ok( ! fs.existsSync( destMissingDir ), 'archive should not be created when destination directory is missing' );
 
 		const missingSource = path.join( tmpRoot, 'missing-src' );
 		const destMissingSource = path.join( tmpRoot, 'missing-src.zip' );
-		const archiveMissingSource = new DirArchiver( missingSource, destMissingSource, false, [] );
-		await assert.rejects( archiveMissingSource.createZip(), /ENOENT/ );
+		await assert.rejects( async () => {
+			await createArchive( {
+				sourceDir: missingSource,
+				destZip: destMissingSource,
+				includeBaseDirectory: false
+			} );
+		}, /ENOENT/ );
 		assert.ok( ! fs.existsSync( destMissingSource ), 'archive should be cleaned up when source directory is missing' );
 
 		const destOutside = path.join( tmpRoot, 'outside.zip' );
-		const archiveOutside = new DirArchiver( src, destOutside, true, [] );
-		await archiveOutside.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destOutside,
+			includeBaseDirectory: true
+		} );
 
 		const entriesOutside = await listZipEntries( destOutside );
 		const baseName = path.basename( src );
@@ -279,8 +333,12 @@ const run = async () => {
 		assert.ok( ! entriesOutside.includes( 'root.txt' ), 'root.txt should not be at archive root' );
 
 		const destOutsideSymlink = path.join( tmpRoot, 'outside-symlink.zip' );
-		const archiveOutsideSymlink = new DirArchiver( src, destOutsideSymlink, true, [], true );
-		await archiveOutsideSymlink.createZip();
+		await createArchive( {
+			sourceDir: src,
+			destZip: destOutsideSymlink,
+			includeBaseDirectory: true,
+			followSymlinks: true
+		} );
 		const entriesOutsideSymlink = await listZipEntries( destOutsideSymlink );
 		assert.ok( entriesOutsideSymlink.includes( `${baseName}/root.txt` ), 'base directory should still be included when following symlinks' );
 		if ( symlinkCreated ) {
@@ -297,8 +355,13 @@ const run = async () => {
 			fs.chmodSync( lockedDir, 0 );
 
 			const destLocked = path.join( tmpRoot, 'locked.zip' );
-			const archiveLocked = new DirArchiver( src, destLocked, false, [] );
-			await assert.rejects( archiveLocked.createZip() );
+			await assert.rejects( async () => {
+				await createArchive( {
+					sourceDir: src,
+					destZip: destLocked,
+					includeBaseDirectory: false
+				} );
+			} );
 
 			fs.chmodSync( lockedDir, 0o755 );
 
@@ -306,8 +369,13 @@ const run = async () => {
 			fs.mkdirSync( readOnlyDir );
 			fs.chmodSync( readOnlyDir, 0o555 );
 			const destReadOnly = path.join( readOnlyDir, 'archive.zip' );
-			const archiveReadOnly = new DirArchiver( src, destReadOnly, false, [] );
-			await assert.rejects( archiveReadOnly.createZip() );
+			await assert.rejects( async () => {
+				await createArchive( {
+					sourceDir: src,
+					destZip: destReadOnly,
+					includeBaseDirectory: false
+				} );
+			} );
 			assert.ok( ! fs.existsSync( destReadOnly ), 'archive should not exist when destination is not writable' );
 			fs.chmodSync( readOnlyDir, 0o755 );
 
@@ -315,8 +383,13 @@ const run = async () => {
 			fs.writeFileSync( unreadableFile, 'secret' );
 			fs.chmodSync( unreadableFile, 0 );
 			const destUnreadable = path.join( tmpRoot, 'unreadable.zip' );
-			const archiveUnreadable = new DirArchiver( src, destUnreadable, false, [] );
-			await assert.rejects( archiveUnreadable.createZip() );
+			await assert.rejects( async () => {
+				await createArchive( {
+					sourceDir: src,
+					destZip: destUnreadable,
+					includeBaseDirectory: false
+				} );
+			} );
 			assert.ok( ! fs.existsSync( destUnreadable ), 'archive should be cleaned up when a file is unreadable' );
 			fs.chmodSync( unreadableFile, 0o644 );
 		}

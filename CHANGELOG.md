@@ -1,5 +1,13 @@
 # Changes to Dir Archiver
 
+### Unreleased (January 30, 2026)
+
+* Require Node.js >=24 and keep the package ESM-only.
+* Replace archiver with zip-next for archive creation.
+* Bump argv-flags to the schema-driven 1.x series.
+* Export `createArchive` / `planArchive` APIs alongside the class wrapper.
+* Harden TypeScript and ESLint rules (node/security/promise) to catch bugs earlier.
+
 ### 2.2.0 (January 28, 2026)
 
 * Migrate source to TypeScript with strict compiler options.
