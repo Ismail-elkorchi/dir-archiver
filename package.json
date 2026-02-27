@@ -44,15 +44,15 @@
   },
   "dependencies": {
     "archiver": "^7.0.1",
-    "argv-flags": "^0.2.1"
+    "argv-flags": "^1.0.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^10.0.1",
     "@types/archiver": "^7.0.0",
-    "@types/node": "^20.11.0",
+    "@types/node": "^25.3.2",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.2",
     "globals": "^17.2.0",
     "typescript": "^5.3.3",
     "yauzl": "^3.2.0"
