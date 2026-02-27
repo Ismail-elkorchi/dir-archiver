@@ -254,7 +254,9 @@ class DirArchiver {
 			// Create a file to stream archive data to.
 			output = fs.createWriteStream( this.zipPath );
 			archive = archiver( 'zip', {
-				zlib: { level: 9 }
+				zlib: { level: 9 },
+				// Keep deterministic entry ordering across platforms.
+				statConcurrency: 1
 			} );
 
 			// Catch warnings during archiving.
