@@ -6,14 +6,16 @@
     ".": "./src/index.ts"
   },
   "imports": {
-    "@ismail-elkorchi/bytefold/node/zip": "jsr:@ismail-elkorchi/bytefold/deno@^0.5.0"
+    "@ismail-elkorchi/bytefold/node/zip": "jsr:@ismail-elkorchi/bytefold/deno@^0.6.0",
+    "@ismail-elkorchi/bytefold/deno": "jsr:@ismail-elkorchi/bytefold/deno@^0.6.0",
+    "@ismail-elkorchi/bytefold/bun": "jsr:@ismail-elkorchi/bytefold/bun@^0.6.0"
   },
   "publish": {
     "include": [
       "LICENSE",
       "README.md",
       "CHANGELOG.md",
-      "src/index.ts",
+      "src/**",
       "jsr.json",
       "package.json"
     ],

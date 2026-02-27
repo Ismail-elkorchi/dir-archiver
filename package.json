@@ -48,7 +48,7 @@
     "test:deno": "npm run build && deno run --allow-read --allow-write --allow-env --allow-sys test/deno-smoke.mjs",
     "test:bun": "npm run build && bun test/bun-smoke.mjs",
     "test:runtimes": "npm run test:deno && npm run test:bun",
-    "jsr:dry": "deno publish --dry-run --allow-dirty",
+    "jsr:dry": "deno publish --dry-run --allow-dirty --sloppy-imports",
     "prepack": "npm run build"
   },
   "engines": {
