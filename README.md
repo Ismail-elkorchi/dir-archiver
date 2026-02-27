@@ -8,9 +8,11 @@ Compress a whole directory (including subdirectories) into a zip file, with opti
 
 ```sh
 $ npm install dir-archiver
+# or
+$ deno add jsr:@ismail-elkorchi/dir-archiver
 ```
 
-Requires Node.js >=18.
+Requires Node.js >=22 for npm usage. The package is ESM-only and smoke-tested on latest stable Deno and Bun.
 
 # Usage
 
@@ -19,7 +21,7 @@ Requires Node.js >=18.
 Quick start (async/await):
 
 ```javascript
-const DirArchiver = require('dir-archiver');
+import DirArchiver from 'dir-archiver';
 
 const archive = new DirArchiver(
   './my-project',
@@ -113,7 +115,7 @@ $ npm run build
 $ npm run lint
 ```
 
-Linting runs TypeScript typechecking and ESLint. CI runs lint and tests on Node 18/20/22 across Linux, macOS, and Windows.
+Linting runs TypeScript typechecking and ESLint. CI runs lint/tests on Node 22 across Linux, macOS, and Windows, plus Deno and Bun smoke tests.
 
 
 
