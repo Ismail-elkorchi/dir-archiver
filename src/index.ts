@@ -22,6 +22,15 @@ interface ZipWriterFactory {
 
 let zipWriterPromise: Promise<ZipWriterFactory> | undefined;
 
+interface RuntimeProcessLike {
+	platform?: string;
+}
+
+const getRuntimePlatform = (): string | undefined => {
+	const runtimeProcess = ( globalThis as { process?: RuntimeProcessLike } ).process;
+	return typeof runtimeProcess?.platform === 'string' ? runtimeProcess.platform : undefined;
+};
+
 const loadZipWriter = (): Promise<ZipWriterFactory> => {
 	zipWriterPromise ??= import( '@ismail-elkorchi/bytefold/node/zip' )
 		.then( ( moduleExports ) => moduleExports.ZipWriter as ZipWriterFactory );
@@ -64,7 +73,7 @@ class DirArchiver {
 		this.followSymlinks = followSymlinks;
 		this.baseDirectory = path.basename( this.directoryPath );
 		this.visitedDirectories = new Set();
-		this.caseInsensitiveExcludes = process.platform === 'win32';
+		this.caseInsensitiveExcludes = getRuntimePlatform() === 'win32';
 
 		// Contains the excluded files and folders.
 		this.excludedPaths = new Set();

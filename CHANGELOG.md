@@ -1,5 +1,11 @@
 # Changes to Dir Archiver
 
+### Unreleased
+
+* Add tag-driven `Release` workflow to automate npm and JSR publication.
+* Add `jsr.json` manifest and `npm run jsr:dry` packaging check.
+* Update docs to reflect ESM-only usage and Node.js >=22 with Deno/Bun smoke support.
+
 ### 2.2.0 (January 28, 2026)
 
 * Migrate source to TypeScript with strict compiler options.
