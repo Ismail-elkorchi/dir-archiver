@@ -79,7 +79,7 @@ jobs:
           JSR_TOKEN: ${{ secrets.JSR_TOKEN }}
         run: |
           if [ -n "${JSR_TOKEN}" ]; then
-            deno publish --token "${JSR_TOKEN}"
+            deno publish --sloppy-imports --token "${JSR_TOKEN}"
           else
-            deno publish
+            deno publish --sloppy-imports
           fi

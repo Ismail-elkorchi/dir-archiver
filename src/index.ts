@@ -2,39 +2,41 @@
 
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-
-interface ZipWriterLike {
-	add: (
-		name: string,
-		source: string
-	) => Promise<void>;
-	close: () => Promise<void>;
-}
-
-interface ZipWriterFactory {
-	toFile: (
-		path: string | URL,
-		options?: {
-			sinkSeekabilityPolicy?: 'auto' | 'on' | 'off';
-		}
-	) => Promise<ZipWriterLike>;
-}
-
-let zipWriterPromise: Promise<ZipWriterFactory> | undefined;
+import { loadRuntimeZipWriter } from './runtime/index.js';
+import type { ZipWriterLike } from './runtime/types.js';
 
 interface RuntimeProcessLike {
 	platform?: string;
 }
 
+interface DenoGlobalLike {
+	build?: {
+		os?: string;
+	};
+}
+
+interface BunGlobalLike {
+	platform?: string;
+}
+
 const getRuntimePlatform = (): string | undefined => {
 	const runtimeProcess = ( globalThis as { process?: RuntimeProcessLike } ).process;
-	return typeof runtimeProcess?.platform === 'string' ? runtimeProcess.platform : undefined;
-};
-
-const loadZipWriter = (): Promise<ZipWriterFactory> => {
-	zipWriterPromise ??= import( '@ismail-elkorchi/bytefold/node/zip' )
-		.then( ( moduleExports ) => moduleExports.ZipWriter as ZipWriterFactory );
-	return zipWriterPromise;
+	if ( typeof runtimeProcess?.platform === 'string' ) {
+		return runtimeProcess.platform;
+	}
+	const denoGlobal = ( globalThis as { Deno?: DenoGlobalLike } ).Deno;
+	const denoPlatform = denoGlobal?.build?.os;
+	if ( denoPlatform === 'windows' ) {
+		return 'win32';
+	}
+	if ( typeof denoPlatform === 'string' ) {
+		return denoPlatform;
+	}
+	const bunGlobal = ( globalThis as { Bun?: BunGlobalLike } ).Bun;
+	if ( typeof bunGlobal?.platform === 'string' ) {
+		return bunGlobal.platform;
+	}
+	return undefined;
 };
 
 interface ArchiveFileEntry {
@@ -245,11 +247,11 @@ class DirArchiver {
 		this.visitedDirectories.clear();
 		const filesToArchive = this.collectArchiveEntries( this.directoryPath );
 
-		const ZipWriter = await loadZipWriter();
+		const createZipWriter = await loadRuntimeZipWriter();
 		let writer: ZipWriterLike | undefined;
 
 		try {
-			writer = await ZipWriter.toFile( this.zipPath, {
+			writer = await createZipWriter( this.zipPath, {
 				// Keep deterministic entry ordering across platforms.
 				sinkSeekabilityPolicy: 'on'
 			} );
