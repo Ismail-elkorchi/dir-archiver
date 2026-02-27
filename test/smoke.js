@@ -4,8 +4,8 @@ const assert = require( 'assert' );
 const fs = require( 'fs' );
 const os = require( 'os' );
 const path = require( 'path' );
+const { pathToFileURL } = require( 'url' );
 const yauzl = require( 'yauzl' );
-const DirArchiver = require( '../dist/index' );
 
 const isWindows = process.platform === 'win32';
 
@@ -79,6 +79,9 @@ const removeDir = ( dirPath ) => {
 };
 
 const run = async () => {
+	const dirArchiverModuleUrl = pathToFileURL( path.join( __dirname, '..', 'dist', 'index.js' ) ).href;
+	const { default: DirArchiver } = await import( dirArchiverModuleUrl );
+
 	let tmpRoot;
 	try {
 		tmpRoot = fs.mkdtempSync( path.join( os.tmpdir(), 'dir-archiver-' ) );
