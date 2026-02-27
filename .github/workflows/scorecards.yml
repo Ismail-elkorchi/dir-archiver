@@ -1,0 +1,50 @@
+name: Scorecards
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: scorecards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: OpenSSF Scorecards
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Run Scorecard analysis
+        id: scorecard
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: scorecard-sarif
+          path: scorecard-results.sarif
+          if-no-files-found: error
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
+        with:
+          sarif_file: scorecard-results.sarif
