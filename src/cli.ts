@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import DirArchiver from './index';
-import { parseCliArgs } from './cli-args';
+import DirArchiver from './index.js';
+import { parseCliArgs } from './cli-args.js';
 
 const usage = ` Dir Archiver could not be executed. Some arguments are missing.
 

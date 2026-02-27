@@ -3,8 +3,15 @@
   "version": "2.2.0",
   "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
   "license": "MIT",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "bin": {
     "dir-archiver": "dist/cli.js"
   },
@@ -37,10 +44,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "npm run typecheck && eslint . --max-warnings=0",
     "test": "npm run build && node test/cli-args.js && node test/smoke.js && node test/cli.js",
+    "test:deno": "npm run build && deno run --allow-read --allow-write --allow-env --allow-sys test/deno-smoke.mjs",
+    "test:bun": "npm run build && bun test/bun-smoke.mjs",
+    "test:runtimes": "npm run test:deno && npm run test:bun",
     "prepack": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "@ismail-elkorchi/bytefold": "github:Ismail-elkorchi/bytefold#7eb173157d22baef2d72e20f952273bf58f5a2a3",

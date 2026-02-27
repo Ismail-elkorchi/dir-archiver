@@ -1,9 +1,10 @@
 'use strict';
 
 const assert = require( 'assert' );
-const { parseCliArgs } = require( '../dist/cli-args' );
 
 const run = async () => {
+	const { parseCliArgs } = await import( '../dist/cli-args.js' );
+
 	const minimal = await parseCliArgs( [ '--src', 'source', '--dest', 'archive.zip' ] );
 	assert.strictEqual( minimal.hasRequiredPaths, true, 'required args should parse' );
 	assert.strictEqual( minimal.directoryPath, 'source' );
