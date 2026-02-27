@@ -1,31 +1,9 @@
 #!/usr/bin/env node
 
 import DirArchiver from './index';
-import parseArgs from 'argv-flags';
+import { parseCliArgs } from './cli-args';
 
-const parseBooleanFlag = ( flag: string ): boolean => {
-	const rawValue = parseArgs( flag, 'string' );
-	if ( typeof rawValue === 'string' && rawValue.length > 0 && ! rawValue.startsWith( '-' ) ) {
-		const normalized = rawValue.toLowerCase();
-		if ( normalized === 'true' ) {
-			return true;
-		}
-		if ( normalized === 'false' ) {
-			return false;
-		}
-	}
-	return parseArgs( flag, 'boolean' ) === true;
-};
-
-const directoryPath = parseArgs( '--src', 'string' );
-const zipPath = parseArgs( '--dest', 'string' );
-const includeBaseDirectory = parseBooleanFlag( '--includebasedir' );
-const followSymlinks = parseBooleanFlag( '--followsymlinks' );
-const excludeValues = parseArgs( '--exclude', 'array' );
-const excludes = Array.isArray( excludeValues ) ? excludeValues : [];
-
-if ( typeof directoryPath !== 'string' || typeof zipPath !== 'string' ) {
-	console.log( ` Dir Archiver could not be executed. Some arguments are missing.
+const usage = ` Dir Archiver could not be executed. Some arguments are missing.
 
     Options:
       --src            The path of the folder to archive.                            [string][required]
@@ -37,13 +15,33 @@ if ( typeof directoryPath !== 'string' || typeof zipPath !== 'string' ) {
                        If this option is set to false the archive created will
                        unzip its content to the current directory.                               [bool]
       --followsymlinks Follow symlinks when traversing directories.                              [bool]
-      --exclude        A list with the names of the files and folders to exclude.               [array]` );
-	process.exitCode = 1;
-} else {
-	const archive = new DirArchiver( directoryPath, zipPath, includeBaseDirectory, excludes, followSymlinks );
-	archive.createZip().catch( ( err: unknown ) => {
-		const normalizedError = err instanceof Error ? err : new Error( String( err ) );
-		console.error( normalizedError );
+      --exclude        A list with the names of the files and folders to exclude.               [array]`;
+
+const run = async (): Promise<void> => {
+	const parsedArgs = await parseCliArgs( process.argv.slice( 2 ) );
+
+	if (
+		! parsedArgs.hasRequiredPaths
+		|| typeof parsedArgs.directoryPath !== 'string'
+		|| typeof parsedArgs.zipPath !== 'string'
+	) {
+		console.log( usage );
 		process.exitCode = 1;
-	} );
-}
+		return;
+	}
+
+	const archive = new DirArchiver(
+		parsedArgs.directoryPath,
+		parsedArgs.zipPath,
+		parsedArgs.includeBaseDirectory,
+		parsedArgs.excludes,
+		parsedArgs.followSymlinks
+	);
+	await archive.createZip();
+};
+
+void run().catch( ( err: unknown ) => {
+	const normalizedError = err instanceof Error ? err : new Error( String( err ) );
+	console.error( normalizedError );
+	process.exitCode = 1;
+} );
