@@ -2,7 +2,36 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import archiver from 'archiver';
+
+interface ZipWriterLike {
+	add: (
+		name: string,
+		source: string
+	) => Promise<void>;
+	close: () => Promise<void>;
+}
+
+interface ZipWriterFactory {
+	toFile: (
+		path: string | URL,
+		options?: {
+			sinkSeekabilityPolicy?: 'auto' | 'on' | 'off';
+		}
+	) => Promise<ZipWriterLike>;
+}
+
+let zipWriterPromise: Promise<ZipWriterFactory> | undefined;
+
+const loadZipWriter = (): Promise<ZipWriterFactory> => {
+	zipWriterPromise ??= import( '@ismail-elkorchi/bytefold/node/zip' )
+		.then( ( moduleExports ) => moduleExports.ZipWriter as ZipWriterFactory );
+	return zipWriterPromise;
+};
+
+interface ArchiveFileEntry {
+	sourcePath: string;
+	archivePath: string;
+}
 
 class DirArchiver {
 	private excludedPaths: Set<string>;
@@ -89,11 +118,12 @@ class DirArchiver {
 	}
 
 	/**
-	 * Recursively traverse the directory tree and append the files to the archive.
+	 * Recursively traverse the directory tree and collect files to append to the archive.
 	 * @param directoryPath - The path of the directory being looped through.
 	 */
-	private traverseDirectoryTree( directoryPath: string, archive: archiver.Archiver ): void {
+	private collectArchiveEntries( directoryPath: string ): ArchiveFileEntry[] {
 		const directoriesToVisit: string[] = [ directoryPath ];
+		const filesToArchive: ArchiveFileEntry[] = [];
 
 		while ( directoriesToVisit.length > 0 ) {
 			const nextDirectory = directoriesToVisit.pop();
@@ -139,15 +169,10 @@ class DirArchiver {
 					continue;
 				}
 				if ( entry.isFile() ) {
-					if ( this.includeBaseDirectory ) {
-						archive.file( currentPath, {
-							name: path.posix.join( this.baseDirectory, archiveRelativePath )
-						} );
-					} else {
-						archive.file( currentPath, {
-							name: archiveRelativePath
-						} );
-					}
+					filesToArchive.push( {
+						sourcePath: currentPath,
+						archivePath: this.getArchivePath( archiveRelativePath )
+					} );
 				} else if ( entry.isDirectory() ) {
 					directoriesToVisit.push( currentPath );
 				} else if ( entry.isSymbolicLink() ) {
@@ -161,21 +186,17 @@ class DirArchiver {
 						continue;
 					}
 					if ( stats.isFile() ) {
-						if ( this.includeBaseDirectory ) {
-							archive.file( currentPath, {
-								name: path.posix.join( this.baseDirectory, archiveRelativePath )
-							} );
-						} else {
-							archive.file( currentPath, {
-								name: archiveRelativePath
-							} );
-						}
+						filesToArchive.push( {
+							sourcePath: currentPath,
+							archivePath: this.getArchivePath( archiveRelativePath )
+						} );
 					} else if ( stats.isDirectory() ) {
 						directoriesToVisit.push( currentPath );
 					}
 				}
 			}
 		}
+		return filesToArchive;
 	}
 
 	private prettyBytes( bytes: number ): string {
@@ -198,112 +219,58 @@ class DirArchiver {
 		return this.caseInsensitiveExcludes ? value.toLowerCase() : value;
 	}
 
-	createZip(): Promise<string> {
-		return new Promise( ( resolve, reject ) => {
-			let output: fs.WriteStream | null = null;
-			let archive: archiver.Archiver | null = null;
-			let settled = false;
-			const safeResolve = ( value: string ) => {
-				if ( settled ) {
-					return;
-				}
-				settled = true;
-				resolve( value );
-			};
-			const safeReject = ( err: unknown ) => {
-				if ( settled ) {
-					return;
-				}
-				settled = true;
-				try {
-					if ( archive ) {
-						archive.abort();
-					}
-				} catch {
-					// Ignore abort errors.
-				}
-				try {
-					if ( output ) {
-						output.destroy();
-					}
-				} catch {
-					// Ignore destroy errors.
-				}
-				try {
-					if ( fs.existsSync( this.zipPath ) ) {
-						fs.unlinkSync( this.zipPath );
-					}
-				} catch {
-					// Ignore cleanup errors.
-				}
-				const normalizedError = err instanceof Error ? err : new Error( String( err ) );
-				reject( normalizedError );
-			};
+	private getArchivePath( archiveRelativePath: string ): string {
+		if ( this.includeBaseDirectory ) {
+			return path.posix.join( this.baseDirectory, archiveRelativePath );
+		}
+		return archiveRelativePath;
+	}
 
-			// Remove the destination zip if it exists.
-			// see : https://github.com/Ismail-elkorchi/dir-archiver/issues/5
+	async createZip(): Promise<string> {
+		// Remove the destination zip if it exists.
+		// see : https://github.com/Ismail-elkorchi/dir-archiver/issues/5
+		if ( fs.existsSync( this.zipPath ) ) {
+			fs.unlinkSync( this.zipPath );
+		}
+		fs.accessSync( path.dirname( this.zipPath ), fs.constants.W_OK );
+		this.visitedDirectories.clear();
+		const filesToArchive = this.collectArchiveEntries( this.directoryPath );
+
+		const ZipWriter = await loadZipWriter();
+		let writer: ZipWriterLike | undefined;
+
+		try {
+			writer = await ZipWriter.toFile( this.zipPath, {
+				// Keep deterministic entry ordering across platforms.
+				sinkSeekabilityPolicy: 'on'
+			} );
+
+			for ( const entry of filesToArchive ) {
+				await writer.add( entry.archivePath, entry.sourcePath );
+			}
+			await writer.close();
+		} catch ( err ) {
+			try {
+				if ( writer ) {
+					await writer.close();
+				}
+			} catch {
+				// Ignore close errors after archive failures.
+			}
 			try {
 				if ( fs.existsSync( this.zipPath ) ) {
 					fs.unlinkSync( this.zipPath );
 				}
-			} catch ( err ) {
-				safeReject( err );
-				return;
+			} catch {
+				// Ignore cleanup errors.
 			}
+			const normalizedError = err instanceof Error ? err : new Error( String( err ) );
+			throw normalizedError;
+		}
 
-			// Create a file to stream archive data to.
-			output = fs.createWriteStream( this.zipPath );
-			archive = archiver( 'zip', {
-				zlib: { level: 9 },
-				// Keep deterministic entry ordering across platforms.
-				statConcurrency: 1
-			} );
-
-			// Catch warnings during archiving.
-			archive.on( 'warning', ( err: Error & { code?: string } ) => {
-				if ( err.code === 'ENOENT' ) {
-					// log warning
-					console.log( err );
-				} else {
-					safeReject( err );
-				}
-			} );
-
-			// Catch errors during archiving.
-			archive.on( 'error', ( err ) => {
-				safeReject( err );
-			} );
-
-			output.on( 'error', ( err ) => {
-				safeReject( err );
-			} );
-
-			// Listen for all archive data to be written.
-			output.on( 'close', () => {
-				if ( settled ) {
-					return;
-				}
-				console.log( `Created ${this.zipPath} of ${this.prettyBytes( archive.pointer() )}` );
-				safeResolve( this.zipPath );
-			} );
-
-			// Pipe archive data to the file.
-			archive.pipe( output );
-
-			// Recursively traverse the directory tree and append the files to the archive.
-			this.visitedDirectories.clear();
-			try {
-				this.traverseDirectoryTree( this.directoryPath, archive );
-			} catch ( err ) {
-				safeReject( err );
-				return;
-			}
-
-			// Finalize the archive.
-			void Promise.resolve( archive.finalize() ).catch( ( err: unknown ) => {
-				safeReject( err );
-			} );
-		} );
+		const zipSize = fs.statSync( this.zipPath ).size;
+		console.log( `Created ${this.zipPath} of ${this.prettyBytes( zipSize )}` );
+		return this.zipPath;
 	}
 }
 
