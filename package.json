@@ -36,7 +36,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "npm run typecheck && eslint . --max-warnings=0",
-    "test": "npm run build && node test/smoke.js && node test/cli.js",
+    "test": "npm run build && node test/cli-args.js && node test/smoke.js && node test/cli.js",
     "prepack": "npm run build"
   },
   "engines": {
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "archiver": "^7.0.1",
-    "argv-flags": "^0.2.1"
+    "argv-flags": "^1.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
