@@ -16,6 +16,7 @@ concurrency:
 jobs:
   npm:
     name: Publish npm
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -76,7 +77,7 @@ jobs:
         id: runtime-policy
         shell: bash
         run: |
-          node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('tools/runtime-versions.json','utf8'));fs.appendFileSync(process.env.GITHUB_OUTPUT,'node_pinned='+p.node.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'deno_pinned='+p.deno.pinned+'\\n');"
+          node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('tools/runtime-versions.json','utf8'));fs.appendFileSync(process.env.GITHUB_OUTPUT,'node_pinned='+p.node.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'deno_pinned='+p.deno.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'bun_pinned='+p.bun.pinned+'\\n');"
       - name: Setup Node
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
@@ -86,6 +87,10 @@ jobs:
         uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
         with:
           deno-version: ${{ steps.runtime-policy.outputs.deno_pinned }}
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        with:
+          bun-version: ${{ steps.runtime-policy.outputs.bun_pinned }}
       - name: Install
         run: npm ci
       - name: Quality gates
