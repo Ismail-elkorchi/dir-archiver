@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { extract, list, write } from '../dist/index.js';
@@ -65,12 +65,11 @@ function collectExtractedDescriptors(rootDir) {
   return descriptors;
 
   function visit(currentPath, relativePrefix) {
-    const entries = readdirSync(currentPath);
+    const entries = readdirSync(currentPath, { withFileTypes: true });
     for (const entry of entries) {
-      const absolutePath = path.join(currentPath, entry);
-      const relativePath = relativePrefix.length > 0 ? path.join(relativePrefix, entry) : entry;
-      const stats = statSync(absolutePath);
-      if (stats.isDirectory()) {
+      const absolutePath = path.join(currentPath, entry.name);
+      const relativePath = relativePrefix.length > 0 ? path.join(relativePrefix, entry.name) : entry.name;
+      if (entry.isDirectory()) {
         visit(absolutePath, relativePath);
         continue;
       }
