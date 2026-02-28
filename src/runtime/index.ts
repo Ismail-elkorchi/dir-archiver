@@ -1,50 +1,62 @@
-import { loadBunZipWriter } from './bun.js';
-import { loadDenoZipWriter } from './deno.js';
-import { loadNodeZipWriter } from './node.js';
-import type { CreateZipWriter } from './types.js';
-
-type RuntimeKind = 'node' | 'deno' | 'bun';
+import { DirArchiverError } from '../errors.js';
+import { loadBunBindings } from './bun.js';
+import { loadDenoBindings } from './deno.js';
+import { loadNodeBindings } from './node.js';
+import type { RuntimeBindings, RuntimeKind } from './types.js';
 
 interface NodeProcessLike {
-	versions?: {
-		node?: string;
-	};
+  versions?: {
+    node?: string;
+  };
 }
 
-const hasDenoGlobal = (): boolean => typeof ( globalThis as { Deno?: unknown } ).Deno !== 'undefined';
+interface DenoGlobalLike {
+  version?: {
+    deno?: string;
+  };
+}
 
-const hasBunGlobal = (): boolean => typeof ( globalThis as { Bun?: unknown } ).Bun !== 'undefined';
+interface BunGlobalLike {
+  version?: string;
+}
 
-const hasNodeProcess = (): boolean => {
-	const runtimeProcess = ( globalThis as { process?: NodeProcessLike } ).process;
-	return typeof runtimeProcess?.versions?.node === 'string';
-};
+const hasDenoGlobal = (): boolean =>
+  typeof (globalThis as { Deno?: DenoGlobalLike }).Deno?.version?.deno === 'string';
+
+const hasBunGlobal = (): boolean =>
+  typeof (globalThis as { Bun?: BunGlobalLike }).Bun?.version === 'string';
+
+const hasNodeProcess = (): boolean =>
+  typeof (globalThis as { process?: NodeProcessLike }).process?.versions?.node === 'string';
 
 const detectRuntime = (): RuntimeKind => {
-	if ( hasDenoGlobal() ) {
-		return 'deno';
-	}
-	if ( hasBunGlobal() ) {
-		return 'bun';
-	}
-	if ( hasNodeProcess() ) {
-		return 'node';
-	}
-	throw new Error( 'Unsupported runtime. Expected Node.js, Deno, or Bun.' );
+  if (hasDenoGlobal()) {
+    return 'deno';
+  }
+  if (hasBunGlobal()) {
+    return 'bun';
+  }
+  if (hasNodeProcess()) {
+    return 'node';
+  }
+  throw new DirArchiverError(
+    'DIRARCHIVER_RUNTIME_UNSUPPORTED',
+    'Unsupported runtime. Expected Node.js, Deno, or Bun.'
+  );
 };
 
-let runtimeZipWriterPromise: Promise<CreateZipWriter> | undefined;
+let runtimeBindingsPromise: Promise<RuntimeBindings> | undefined;
 
-export const loadRuntimeZipWriter = async (): Promise<CreateZipWriter> => {
-	runtimeZipWriterPromise ??= ( async () => {
-		const runtime = detectRuntime();
-		if ( runtime === 'deno' ) {
-			return loadDenoZipWriter();
-		}
-		if ( runtime === 'bun' ) {
-			return loadBunZipWriter();
-		}
-		return loadNodeZipWriter();
-	} )();
-	return runtimeZipWriterPromise;
+export const loadRuntimeBindings = async (): Promise<RuntimeBindings> => {
+  runtimeBindingsPromise ??= (async () => {
+    const runtime = detectRuntime();
+    if (runtime === 'deno') {
+      return loadDenoBindings();
+    }
+    if (runtime === 'bun') {
+      return loadBunBindings();
+    }
+    return loadNodeBindings();
+  })();
+  return runtimeBindingsPromise;
 };

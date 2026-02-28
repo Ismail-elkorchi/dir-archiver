@@ -1,4 +1,6 @@
 version: 2
+# Version updates are queue-limited here; security updates are triaged as a separate Dependabot channel.
+# See: repository security alerts / Dependabot security updates for vulnerability remediation flow.
 updates:
   - package-ecosystem: github-actions
     directory: /

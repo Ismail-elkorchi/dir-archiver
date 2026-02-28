@@ -1,0 +1,11 @@
+[
+  "DirArchiverError",
+  "audit",
+  "default",
+  "detect",
+  "extract",
+  "list",
+  "normalize",
+  "open",
+  "write"
+]

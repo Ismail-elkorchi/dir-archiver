@@ -1,127 +1,88 @@
-[![npm][npm-image]][npm-url] [![license][license-image]][license-url]
-[![changelog][changelog-image]][changelog-url]
+---
+role: overview
+audience: users
+source_of_truth: README.md
+update_triggers:
+  - public API changes
+  - CLI contract changes
+  - runtime support changes
+---
 
-# Dir Archiver
-Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files or directories.
+# dir-archiver
 
-# Installation
+`dir-archiver` v3 is a bytefold-backed archive orchestration layer for Node.js, Deno, and Bun.  
+ESM-only. Safety profiles: `compat | strict | agent`.
+
+## Install
+
+### npm
 
 ```sh
-$ npm install dir-archiver
-# or
-$ deno add jsr:@ismail-elkorchi/dir-archiver
+npm install dir-archiver
 ```
 
-Requires Node.js >=22 for npm usage. The package is ESM-only and smoke-tested on latest stable Deno and Bun.
+### JSR
 
-# Usage
-
-## API
-
-Quick start (async/await):
-
-```javascript
-import DirArchiver from 'dir-archiver';
-
-const archive = new DirArchiver(
-  './my-project',
-  './my-project.zip',
-  true,
-  ['node_modules', 'dist', 'nested/secret.txt'],
-  false
-);
-
-await archive.createZip();
+```sh
+deno add jsr:@ismail-elkorchi/dir-archiver
 ```
 
-Signature:
+## Quickstart (API)
 
 ```ts
-new DirArchiver(
-  directoryPath: string,
-  zipPath: string,
-  includeBaseDirectory?: boolean,
-  excludes?: string[],
-  followSymlinks?: boolean
-)
+import { write, detect, list, extract } from 'dir-archiver';
+
+await write('./project', './project.zip', {
+  format: 'zip',
+  includeBaseDirectory: true,
+  profile: 'strict'
+});
+
+const detected = await detect('./project.zip');
+const listed = await list('./project.zip');
+await extract('./project.zip', './out', { profile: 'strict' });
+
+console.log(detected.format, listed.entries.length);
 ```
 
-Parameters:
-- `directoryPath`: Root folder to archive (must exist).
-- `zipPath`: Destination zip file path (parent directory must exist).
-- `includeBaseDirectory`: When true, the archive contains the source folder as the top-level directory.
-- `excludes`: Names or relative paths to skip. Names without path separators match anywhere; use a relative path
-  (for example, `nested/file.txt`) to target a specific entry. Trailing slashes can target directories (for example, `cache/`).
-  Windows-style backslashes are accepted and normalized. Absolute paths inside the source tree are accepted and converted
-  to relative excludes. Matching is case-insensitive on Windows.
-- `followSymlinks`: Follow symlinks when traversing directories. Default: `false`.
+## Public operations
 
-`createZip()` returns a Promise that resolves with the zip path when the archive is finalized and rejects on failure.
-Zip entries always use forward slashes, regardless of OS, and are added in deterministic order.
+- `open(input, options)`
+- `detect(input, options)`
+- `list(input, options)`
+- `audit(input, options)`
+- `extract(input, destination, options)`
+- `normalize(input, destination, options)`
+- `write(source, destination, options)`
 
-## Command Line Interface
+Format surface matches bytefold `ArchiveFormat` support.  
+Directory + single-file codec requests are normalized to `tar.<codec>` (`gz`, `bz2`, `xz`, `zst`, `br`).
+
+## CLI
 
 ```sh
-Usage: dir-archiver --src <path-to-directory> --dest <path-to-file>.zip --includebasedir true|false --exclude folder-name file-name.extension
-
-Options:
-  --src             The path of the folder to archive.                            [string][required]
-  --dest            The path of the zip file to create.                           [string][required]
-  --includebasedir  Includes a base directory at the root of the archive.
-                    For example, if the root folder of your project is named
-                    "your-project", setting this option to true will create
-                    an archive that includes this base directory.
-                    If this option is set to false the archive created will
-                    unzip its content to the current directory.                               [bool]
-  --followsymlinks  Follow symlinks when traversing directories.                              [bool]
-  --exclude         A list with the names of the files and folders to exclude. Names without
-                    path separators match anywhere; use a relative path to target a specific
-                    entry. Windows-style backslashes are accepted and normalized.           [array]
+dir-archiver write --source ./project --output ./project.zip --format zip --json
+dir-archiver detect --input ./project.zip --json
+dir-archiver list --input ./project.zip --json
+dir-archiver audit --input ./project.zip --profile agent --json
+dir-archiver extract --input ./project.zip --output ./out --profile strict --json
+dir-archiver normalize --input ./project.zip --output ./normalized.zip --json
 ```
 
-Inline values are supported for flags (for example, `--includebasedir=true` or `--exclude=cache`).
+Exit codes:
 
-# CLI examples
+- `0` success
+- `1` operational failure
+- `2` usage/validation failure
 
-```sh
-# Basic
-dir-archiver --src ./my-project --dest ./my-project.zip
+## Security model
 
-# Include base directory and exclude node_modules anywhere
-dir-archiver --src ./my-project --dest ./my-project.zip --includebasedir=true --exclude node_modules
+- Archive extraction treats input as untrusted by default.
+- Traversal/absolute paths are blocked in strict/agent profiles.
+- See `SECURITY.md` and `docs/security-triage.md`.
 
-# Exclude a specific path
-dir-archiver --src ./my-project --dest ./my-project.zip --exclude nested/secret.txt
+## Docs
 
-# Windows-style excludes (backslashes are normalized)
-dir-archiver --src . --dest archive.zip --exclude .\\nested\\skip.txt
-
-# Follow symlinks
-dir-archiver --src ./my-project --dest ./my-project.zip --followsymlinks=true
-```
-
-# Testing
-
-```sh
-$ npm test
-```
-
-# Development
-
-```sh
-$ npm install
-$ npm run typecheck
-$ npm run build
-$ npm run lint
-```
-
-Linting runs TypeScript typechecking and ESLint. CI runs lint/tests on Node 22 across Linux, macOS, and Windows, plus Deno and Bun smoke tests.
-
-
-
-[changelog-image]: https://img.shields.io/badge/changelog-md-blue.svg?style=flat-square
-[changelog-url]: CHANGELOG.md
-[license-image]: https://img.shields.io/npm/l/dir-archiver.svg?style=flat-square
-[license-url]: LICENSE
-[npm-image]: https://img.shields.io/npm/v/dir-archiver.svg?style=flat-square
-[npm-url]: https://www.npmjs.com/package/dir-archiver
+- `docs/V3_CONTRACT.md`
+- `CHANGELOG.md`
+- `SECURITY.md`

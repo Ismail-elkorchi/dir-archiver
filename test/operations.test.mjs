@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { audit, detect, extract, list, normalize, write } from '../dist/index.js';
+
+const removeDir = (dirPath) => {
+  rmSync(dirPath, { recursive: true, force: true });
+};
+
+test('write/detect/list/audit/extract/normalize flow on zip', async () => {
+  const tmpRoot = mkdtempSync(path.join(tmpdir(), 'dir-archiver-v3-'));
+  try {
+    const source = path.join(tmpRoot, 'source');
+    const nested = path.join(source, 'nested');
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(path.join(source, 'root.txt'), 'root');
+    writeFileSync(path.join(source, 'skip.txt'), 'skip');
+    writeFileSync(path.join(nested, 'nested.txt'), 'nested');
+
+    const archive = path.join(tmpRoot, 'bundle.zip');
+    const writeResult = await write(source, archive, {
+      format: 'zip',
+      includeBaseDirectory: true,
+      exclude: ['skip.txt']
+    });
+    assert.equal(writeResult.format, 'zip');
+    assert.equal(writeResult.entryCount, 2);
+    assert.equal(existsSync(archive), true);
+
+    const detectResult = await detect(archive, {});
+    assert.equal(detectResult.format, 'zip');
+
+    const listed = await list(archive, {});
+    assert.equal(listed.format, 'zip');
+    assert.equal(listed.entries.some((entry) => entry.name.endsWith('/skip.txt')), false);
+    assert.equal(listed.entries.some((entry) => entry.name.endsWith('/root.txt')), true);
+
+    const auditReport = await audit(archive, { profile: 'strict' });
+    assert.equal(auditReport.ok, true);
+
+    const extractTarget = path.join(tmpRoot, 'extracted');
+    const extractResult = await extract(archive, extractTarget, { profile: 'strict' });
+    assert.equal(extractResult.extractedFiles, 2);
+    const extractedRoot = path.join(extractTarget, path.basename(source), 'root.txt');
+    assert.equal(readFileSync(extractedRoot, 'utf8'), 'root');
+
+    const normalizedTarget = path.join(tmpRoot, 'normalized.zip');
+    const normalizeResult = await normalize(archive, normalizedTarget, { deterministic: true });
+    assert.equal(normalizeResult.format, 'zip');
+    assert.equal(existsSync(normalizedTarget), true);
+  } finally {
+    removeDir(tmpRoot);
+  }
+});
+
+test('directory + single-file codec wraps into tar.<codec>', async () => {
+  const tmpRoot = mkdtempSync(path.join(tmpdir(), 'dir-archiver-v3-'));
+  try {
+    const source = path.join(tmpRoot, 'source');
+    mkdirSync(source, { recursive: true });
+    writeFileSync(path.join(source, 'hello.txt'), 'hello');
+
+    const archive = path.join(tmpRoot, 'wrapped.gz');
+    const result = await write(source, archive, { format: 'gz' });
+    assert.equal(result.format, 'tar.gz');
+    assert.equal(result.wrappedDirectoryCodec, true);
+  } finally {
+    removeDir(tmpRoot);
+  }
+});

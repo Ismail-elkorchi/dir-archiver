@@ -1,14 +1,15 @@
 {
   "name": "@ismail-elkorchi/dir-archiver",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
   },
   "imports": {
-    "@ismail-elkorchi/bytefold/node/zip": "jsr:@ismail-elkorchi/bytefold/deno@^0.6.0",
-    "@ismail-elkorchi/bytefold/deno": "jsr:@ismail-elkorchi/bytefold/deno@^0.6.0",
-    "@ismail-elkorchi/bytefold/bun": "jsr:@ismail-elkorchi/bytefold/bun@^0.6.0"
+    "@ismail-elkorchi/bytefold": "jsr:@ismail-elkorchi/bytefold@^0.7.2",
+    "@ismail-elkorchi/bytefold/node": "jsr:@ismail-elkorchi/bytefold/node@^0.7.2",
+    "@ismail-elkorchi/bytefold/deno": "jsr:@ismail-elkorchi/bytefold/deno@^0.7.2",
+    "@ismail-elkorchi/bytefold/bun": "jsr:@ismail-elkorchi/bytefold/bun@^0.7.2"
   },
   "publish": {
     "include": [

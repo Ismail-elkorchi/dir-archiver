@@ -2,9 +2,20 @@
 
 ### Unreleased
 
-* Add tag-driven `Release` workflow to automate npm and JSR publication.
-* Add `jsr.json` manifest and `npm run jsr:dry` packaging check.
-* Update docs to reflect ESM-only usage and Node.js >=22 with Deno/Bun smoke support.
+* No entries yet.
+
+### 3.0.0 (February 28, 2026)
+
+* Rewrite dir-archiver as a bytefold-backed orchestration layer over `open`, `detect`, `list`, `audit`, `extract`, `normalize`, and `write`.
+* Expand format support to the full bytefold `ArchiveFormat` surface (zip/tar/layered codecs).
+* Add runtime adapters for Node.js, Deno, and Bun with unified API behavior.
+* Add strict/agent extraction security enforcement and stable `DirArchiverError.code` contracts.
+* Add CLI v3 contract with schema-driven parsing via `argv-flags`, machine JSON mode, and explicit exit code semantics.
+* Add capability-derived runtime matrix tests, determinism fingerprints, and adversarial security fixtures.
+* Add downstream compatibility gates against released dependencies and `main` branches.
+* Enforce ESM-only, workflow-policy, docs-policy, and runtime-policy gates via `npm run check`.
+* Align dependency source to released `@ismail-elkorchi/bytefold@^0.7.2` (remove local/git-sha dependency path).
+* Bump runtime floor to Node.js >=24 and keep Deno/Bun support through dedicated runtime checks.
 
 ### 2.2.0 (January 28, 2026)
 

@@ -1,0 +1,30 @@
+{
+  "node": {
+    "floor": "24.0.0",
+    "pinned": "24"
+  },
+  "deno": {
+    "floor": "2.6.7",
+    "pinned": "2.6.7"
+  },
+  "bun": {
+    "floor": "1.3.3",
+    "pinned": "1.3.3"
+  },
+  "policy": {
+    "staleness": {
+      "node": {
+        "maxMajorLag": 0,
+        "maxMinorLag": 1
+      },
+      "deno": {
+        "maxMajorLag": 0,
+        "maxMinorLag": 2
+      },
+      "bun": {
+        "maxMajorLag": 0,
+        "maxMinorLag": 2
+      }
+    }
+  }
+}
