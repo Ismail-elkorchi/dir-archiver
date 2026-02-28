@@ -14,6 +14,12 @@ npm run check
 - Add/update tests for behavior changes.
 - Update `docs/V3_CONTRACT.md` for API or guarantee changes.
 
+## Runtime dependency freshness policy
+
+- Keep direct runtime dependencies in `package.json` and `package-lock.json` on the latest published stable versions before every release.
+- Validate with `npm run deps:fresh` (this gate runs in the release workflow).
+- If a dependency is stale, update it in a dedicated PR and run `npm run check`.
+
 ## Pull request checklist
 
 - [ ] `npm run check` passes locally
