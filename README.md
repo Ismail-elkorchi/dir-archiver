@@ -1,13 +1,3 @@
----
-role: overview
-audience: users
-source_of_truth: README.md
-update_triggers:
-  - public API changes
-  - CLI contract changes
-  - runtime support changes
----
-
 # dir-archiver
 
 `dir-archiver` v3 is a bytefold-backed archive orchestration layer for Node.js, Deno, and Bun.  
@@ -75,6 +65,32 @@ Exit codes:
 - `1` operational failure
 - `2` usage/validation failure
 
+## Common recipes
+
+### 1) Safe archive audit before extraction
+
+```sh
+dir-archiver audit --input ./archive.zip --profile agent --json
+```
+
+### 2) Normalize inbound archives for deterministic processing
+
+```sh
+dir-archiver normalize --input ./archive.zip --output ./normalized.zip --json
+```
+
+### 3) Write tar.gz from a directory
+
+```sh
+dir-archiver write --source ./project --output ./project.tar.gz --format tgz --json
+```
+
+## Troubleshooting
+
+- `DIRARCHIVER_PATH_TRAVERSAL`: archive contains unsafe paths (`..`, absolute, drive-prefixed).
+- `DIRARCHIVER_RESOURCE_LIMIT`: adjust `maxEntryBytes` / `maxTotalExtractedBytes` in extraction options.
+- `DIRARCHIVER_RUNTIME_UNSUPPORTED`: runtime feature mismatch; verify Node/Deno/Bun versions.
+
 ## Security model
 
 - Archive extraction treats input as untrusted by default.
@@ -86,3 +102,5 @@ Exit codes:
 - `docs/V3_CONTRACT.md`
 - `CHANGELOG.md`
 - `SECURITY.md`
+- `CONTRIBUTING.md`
+- `SUPPORT.md`
