@@ -2,23 +2,13 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const ROOT = process.cwd();
+const PACKAGE_SCOPE = 'ismail-elkorchi';
+const PACKAGE_NAME = 'dir-archiver';
+const SCORE_URL = `https://api.jsr.io/scopes/${PACKAGE_SCOPE}/packages/${PACKAGE_NAME}/score`;
 
 const run = async () => {
-  const jsr = JSON.parse(await readFile(path.join(ROOT, 'jsr.json'), 'utf8'));
   const policy = JSON.parse(await readFile(path.join(ROOT, 'tools', 'docs-policy.json'), 'utf8'));
-
-  const jsrName = String(jsr.name ?? '');
-  const match = jsrName.match(/^@([^/]+)\/([^/]+)$/);
-  if (!match) {
-    throw new Error(`Invalid jsr package name: ${jsrName}`);
-  }
-  const scope = match[1];
-  const pkg = match[2];
-  if (!scope || !pkg) {
-    throw new Error(`Invalid jsr package name: ${jsrName}`);
-  }
-
-  const response = await fetch(`https://api.jsr.io/scopes/${scope}/packages/${pkg}/score`);
+  const response = await fetch(SCORE_URL);
   if (!response.ok) {
     throw new Error(`JSR score API request failed: ${response.status}`);
   }
