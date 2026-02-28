@@ -1,7 +1,7 @@
 {
   "name": "dir-archiver",
-  "version": "2.2.0",
-  "description": "Compress a whole directory (including subdirectories) into a zip file, with options to exclude specific files, or directories.",
+  "version": "3.0.0",
+  "description": "Bytefold-backed archive orchestration for directories/files across Node.js, Deno, and Bun.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -21,17 +21,21 @@
     "jsr.json"
   ],
   "keywords": [
-    "zip",
-    "compression",
     "archive",
-    "archiver",
-    "folder",
-    "directory",
-    "dir"
+    "bytefold",
+    "dir-archiver",
+    "compression",
+    "cli",
+    "esm",
+    "jsr",
+    "npm",
+    "deno",
+    "bun",
+    "directory"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Ismail-elkorchi/dir-archiver.git"
+    "url": "https://github.com/Ismail-elkorchi/dir-archiver"
   },
   "author": {
     "name": "Ismail El Korchi",
@@ -44,19 +48,25 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "npm run typecheck && eslint . --max-warnings=0",
-    "test": "npm run build && node test/cli-args.js && node test/smoke.js && node test/cli.js",
+    "test": "npm run build && node --test test/api-snapshot.test.mjs test/operations.test.mjs test/cli.test.mjs test/matrix-node.test.mjs",
+    "test:security": "npm run build && node --test test/security.test.mjs",
+    "check": "node ./scripts/verify-runtime-versions.mjs && node ./scripts/workflow-policy-check.mjs && node ./scripts/esm-only-guard.mjs && node ./scripts/docs-policy-check.mjs && npm run lint && npm run test && npm run test:security && npm run test:runtimes",
     "test:deno": "npm run build && deno run --allow-read --allow-write --allow-env --allow-sys test/deno-smoke.mjs",
     "test:bun": "npm run build && bun test/bun-smoke.mjs",
-    "test:runtimes": "npm run test:deno && npm run test:bun",
+    "test:runtimes": "npm run test:deno && npm run test:bun && npm run test:runtimes:fingerprints",
+    "test:runtimes:fingerprints": "npm run build && node ./scripts/compare-runtime-fingerprints.mjs",
+    "jsr:score": "node ./scripts/jsr-score-gate.mjs",
+    "test:downstream:released": "npm run test",
+    "test:downstream:main": "npm install --no-save github:Ismail-elkorchi/bytefold#main github:Ismail-elkorchi/argv-flags#main && npm run test",
     "jsr:dry": "deno publish --dry-run --allow-dirty --sloppy-imports",
     "prepack": "npm run build"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "dependencies": {
-    "@ismail-elkorchi/bytefold": "github:Ismail-elkorchi/bytefold#7eb173157d22baef2d72e20f952273bf58f5a2a3",
-    "argv-flags": "^1.0.2"
+    "@ismail-elkorchi/bytefold": "^0.7.2",
+    "argv-flags": "^1.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

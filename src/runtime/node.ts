@@ -1,21 +1,25 @@
-import type { CreateZipWriter } from './types.js';
+import type { RuntimeBindings } from './types.js';
 
-interface NodeZipWriterModule {
-	ZipWriter?: {
-		toFile?: CreateZipWriter;
-	};
+interface NodeRuntimeModule {
+  openArchive?: RuntimeBindings['openArchive'];
+  createArchiveWriter?: RuntimeBindings['createArchiveWriter'];
 }
 
-let nodeZipWriterPromise: Promise<CreateZipWriter> | undefined;
+let nodeBindingsPromise: Promise<RuntimeBindings> | undefined;
 
-export const loadNodeZipWriter = async (): Promise<CreateZipWriter> => {
-	nodeZipWriterPromise ??= import( '@ismail-elkorchi/bytefold/node/zip' )
-		.then( ( moduleExports ) => {
-			const ZipWriter = ( moduleExports as NodeZipWriterModule ).ZipWriter;
-			if ( ! ZipWriter || typeof ZipWriter.toFile !== 'function' ) {
-				throw new Error( 'Bytefold node ZipWriter.toFile is unavailable.' );
-			}
-			return ZipWriter.toFile.bind( ZipWriter );
-		} );
-	return nodeZipWriterPromise;
+export const loadNodeBindings = async (): Promise<RuntimeBindings> => {
+  nodeBindingsPromise ??= import('@ismail-elkorchi/bytefold/node')
+    .then((moduleExports) => {
+      const openArchive = (moduleExports as NodeRuntimeModule).openArchive;
+      const createArchiveWriter = (moduleExports as NodeRuntimeModule).createArchiveWriter;
+      if (typeof openArchive !== 'function' || typeof createArchiveWriter !== 'function') {
+        throw new Error('Bytefold node runtime exports are unavailable.');
+      }
+      return {
+        runtime: 'node',
+        openArchive,
+        createArchiveWriter
+      } satisfies RuntimeBindings;
+    });
+  return nodeBindingsPromise;
 };

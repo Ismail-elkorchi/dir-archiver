@@ -1,16 +1,21 @@
-export interface ZipWriterLike {
-	add: (
-		name: string,
-		source: string
-	) => Promise<void>;
-	close: () => Promise<void>;
+import type { ArchiveFormat, ArchiveOpenOptions, ArchiveReader } from '@ismail-elkorchi/bytefold';
+
+export type RuntimeKind = 'node' | 'deno' | 'bun';
+
+export interface ArchiveWriterLike {
+  add: (
+    name: string,
+    source: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>
+  ) => Promise<void>;
+  close: () => Promise<void>;
 }
 
-export interface ZipWriterOptions {
-	sinkSeekabilityPolicy?: 'auto' | 'on' | 'off';
+export interface RuntimeBindings {
+  runtime: RuntimeKind;
+  openArchive: (input: unknown, options?: ArchiveOpenOptions) => Promise<ArchiveReader>;
+  createArchiveWriter: (
+    format: ArchiveFormat,
+    writable: WritableStream<Uint8Array>,
+    options?: unknown
+  ) => ArchiveWriterLike;
 }
-
-export type CreateZipWriter = (
-	path: string | URL,
-	options?: ZipWriterOptions
-) => Promise<ZipWriterLike>;

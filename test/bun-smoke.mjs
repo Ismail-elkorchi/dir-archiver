@@ -1,36 +1,59 @@
-import { join } from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import DirArchiver from '../dist/index.js';
+import { join } from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { runtimeSupport, supportMatrix } from '@ismail-elkorchi/bytefold/support';
+import { extract, list, write } from '../dist/index.js';
 
 const run = async () => {
-	const normalizedTmpRoot = mkdtempSync( join( tmpdir(), 'dir-archiver-bun-' ) );
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'dir-archiver-bun-'));
 
-	try {
-		const src = join( normalizedTmpRoot, 'src' );
-		const nested = join( src, 'nested' );
-		const dest = join( normalizedTmpRoot, 'archive.zip' );
+  try {
+    const source = join(tmpRoot, 'source');
+    mkdirSync(source, { recursive: true });
+    writeFileSync(join(source, 'hello.txt'), 'hello');
+    const archive = join(tmpRoot, 'archive.zip');
+    const extractTarget = join(tmpRoot, 'extracted');
 
-		mkdirSync( nested, { recursive: true } );
-		writeFileSync( join( src, 'root.txt' ), 'root' );
-		writeFileSync( join( nested, 'nested.txt' ), 'nested' );
+    await write(source, archive, { format: 'zip' });
+    if (!existsSync(archive)) {
+      throw new Error('Bun smoke: archive was not created.');
+    }
 
-		const archive = new DirArchiver( src, dest, false, [] );
-		await archive.createZip();
+    const listed = await list(archive, {});
+    if (listed.entries.length === 0) {
+      throw new Error('Bun smoke: list returned no entries.');
+    }
 
-		if ( ! existsSync( dest ) ) {
-			throw new Error( 'Bun smoke: destination archive was not created.' );
-		}
-		const stats = statSync( dest );
-		if ( ! stats.isFile() || stats.size <= 0 ) {
-			throw new Error( 'Bun smoke: destination archive is invalid.' );
-		}
-	} finally {
-		rmSync( normalizedTmpRoot, { recursive: true, force: true } );
-	}
+    await extract(archive, extractTarget, { profile: 'strict' });
+    const extractedFile = join(extractTarget, 'hello.txt');
+    if (readFileSync(extractedFile, 'utf8') !== 'hello') {
+      throw new Error('Bun smoke: extracted file content mismatch.');
+    }
+
+    const bunSupport = runtimeSupport('bun');
+    const unsupportedWriteFormat = supportMatrix.formats.find((format) => bunSupport[format].write.state !== 'supported');
+    if (!unsupportedWriteFormat) {
+      throw new Error('Bun smoke: expected at least one unsupported write format.');
+    }
+
+    let unsupportedFailed = false;
+    try {
+      await write(source, join(tmpRoot, `unsupported.${unsupportedWriteFormat.replace('/', '.')}`), {
+        format: unsupportedWriteFormat
+      });
+    } catch {
+      unsupportedFailed = true;
+    }
+    if (!unsupportedFailed) {
+      throw new Error(`Bun smoke: unsupported write format "${unsupportedWriteFormat}" unexpectedly succeeded.`);
+    }
+  } finally {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  }
 };
 
-run().catch( ( err ) => {
-	console.error( err );
-	process.exitCode = 1;
-} );
+run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
