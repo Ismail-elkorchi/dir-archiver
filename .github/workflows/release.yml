@@ -37,8 +37,15 @@ jobs:
         run: npm run deps:fresh
       - name: Release gate
         run: node ./scripts/release-gate.mjs
-      - name: Extract changelog section
-        run: node ./scripts/changelog-section.mjs > release-notes.md
+      - name: Build release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          node ./scripts/changelog-section.mjs > release-notes.md
+          printf '\n' >> release-notes.md
+          node ./scripts/release-audit.mjs --print-pr-section --tag "${TAG_NAME}" >> release-notes.md
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,8 +57,7 @@ jobs:
             gh release create "${TAG_NAME}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "${TAG_NAME#v}" \
-              --notes-file release-notes.md \
-              --generate-notes
+              --notes-file release-notes.md
           fi
 
   npm:
