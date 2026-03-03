@@ -76,8 +76,8 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@ismail-elkorchi/bytefold": "^0.8.0",
-    "argv-flags": "^1.0.3"
+    "@ismail-elkorchi/bytefold": "^0.8.1",
+    "argv-flags": "^1.0.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
