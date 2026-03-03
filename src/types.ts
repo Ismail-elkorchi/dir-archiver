@@ -22,16 +22,39 @@ export type DirArchiverInput =
   | Blob;
 
 /**
- * Common options forwarded to bytefold open operations.
+ * Common options forwarded to bytefold archive-open operations.
+ *
+ * Used by `open()`, `detect()`, `list()`, and `audit()`.
  */
 export interface OpenOptions
 {
+  /**
+   * Explicit format override when callers already know archive type.
+   */
   format?: ArchiveOpenOptions['format'] | undefined;
+  /**
+   * Safety profile (`compat`, `strict`, `agent`) applied during reads/audits.
+   */
   profile?: ArchiveOpenOptions['profile'] | undefined;
+  /**
+   * Extra strictness toggle forwarded to bytefold parsing.
+   */
   isStrict?: ArchiveOpenOptions['isStrict'] | undefined;
+  /**
+   * Parser/resource limits enforced while opening or auditing archives.
+   */
   limits?: ArchiveOpenOptions['limits'] | undefined;
+  /**
+   * Abort signal for cancelling in-flight async operations.
+   */
   signal?: ArchiveOpenOptions['signal'] | undefined;
+  /**
+   * Password used for encrypted archives when supported by the runtime.
+   */
   password?: ArchiveOpenOptions['password'] | undefined;
+  /**
+   * Filename hint used for extension-based inference with non-path inputs.
+   */
   filename?: ArchiveOpenOptions['filename'] | undefined;
 }
 
@@ -64,6 +87,12 @@ export interface ListResult {
   entries: ListEntry[];
 }
 
+/**
+ * Options for `audit()`.
+ *
+ * Alias of `OpenOptions` for stable API typing; CLI-only flags (for example
+ * `--json`) are not part of this programmatic surface.
+ */
 export type AuditOptions = OpenOptions;
 
 /**
@@ -83,11 +112,27 @@ export interface NormalizeResult {
 
 /**
  * Extraction options with explicit safety limits.
+ *
+ * `extract()` defaults to `profile: 'strict'` when no profile is supplied.
  */
 export interface ExtractOptions extends OpenOptions {
+  /**
+   * If `true`, symbolic-link entries are materialized on disk; otherwise they
+   * are skipped and counted in `ExtractResult.skippedEntries`.
+   */
   allowSymlinks?: boolean | undefined;
+  /**
+   * Reserved for forward compatibility. Hard-link entries are currently
+   * rejected with `DIRARCHIVER_UNSUPPORTED_ENTRY` regardless of this flag.
+   */
   allowHardlinks?: boolean | undefined;
+  /**
+   * Maximum bytes allowed for any single extracted file entry.
+   */
   maxEntryBytes?: number | undefined;
+  /**
+   * Maximum cumulative bytes allowed across all extracted file entries.
+   */
   maxTotalExtractedBytes?: number | undefined;
 }
 
@@ -107,11 +152,31 @@ export interface ExtractResult {
  * Archive writer options.
  */
 export interface WriteOptions {
+  /**
+   * Requested output format. If omitted, inferred from destination extension
+   * and falls back to `zip` when inference is not possible.
+   */
   format?: ArchiveFormat | undefined;
+  /**
+   * Includes the source directory name as a root folder in the archive when
+   * source is a directory.
+   */
   includeBaseDirectory?: boolean | undefined;
+  /**
+   * Follows symbolic links while walking directory sources for `write()`.
+   */
   followSymlinks?: boolean | undefined;
+  /**
+   * Glob-like exclusion patterns evaluated relative to the source root.
+   */
   exclude?: string[] | undefined;
+  /**
+   * Writer profile (`compat`, `strict`, `agent`) forwarded to bytefold.
+   */
   profile?: ArchiveProfile | undefined;
+  /**
+   * Optional writer limits passed through to bytefold operations.
+   */
   limits?: ArchiveLimits | undefined;
 }
 

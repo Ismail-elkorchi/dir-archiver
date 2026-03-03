@@ -73,5 +73,12 @@ module.exports = [
 			ecmaVersion: 2021,
 			sourceType: 'script'
 		}
+	},
+	{
+		files: [ '**/*.mjs' ],
+		languageOptions: {
+			ecmaVersion: 'latest',
+			sourceType: 'module'
+		}
 	}
 ];

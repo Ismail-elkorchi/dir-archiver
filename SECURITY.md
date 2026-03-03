@@ -1,14 +1,20 @@
 # Security policy
 
-## Reporting
+## Threat model
+
+- Archive inputs are untrusted by default.
+- Common risks include path traversal, symlink abuse, hard-link abuse, and resource exhaustion.
+- Runtime/feature mismatches are treated as explicit typed failures.
+
+## Safe usage guidance
+
+- Prefer `strict` or `agent` profiles for extraction and audit.
+- Audit untrusted archives before extraction (`audit` + `assertSafe` paths).
+- Set resource limits (`maxEntryBytes`, `maxTotalExtractedBytes`) for hostile inputs.
+
+## Reporting vulnerabilities
 
 Report security issues through GitHub Security Advisories for this repository.
-
-## Handling model
-
-- Archive inputs are treated as untrusted data by default.
-- `strict` and `agent` safety profiles are the baseline for audit and extraction safety checks.
-- Security triage inventory is maintained in `docs/security-triage.md`.
 
 ## Disclosure workflow
 

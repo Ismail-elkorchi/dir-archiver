@@ -6,6 +6,7 @@ import { parseCliArgs } from './cli-args.js';
 
 const usage = `Usage:
   dir-archiver write --source <path> --output <archive> [--format <format>] [--include-base-directory] [--exclude <path>...]
+  dir-archiver open --input <archive> [--profile compat|strict|agent]
   dir-archiver detect --input <archive>
   dir-archiver list --input <archive>
   dir-archiver audit --input <archive> [--profile compat|strict|agent]
