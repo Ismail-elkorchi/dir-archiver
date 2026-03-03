@@ -4,6 +4,14 @@
 
 * No entries yet.
 
+### 3.0.1 (March 3, 2026)
+
+* Rework README/docs information architecture for fast first-use onboarding.
+* Expand `docs/reference/cli.md` as the canonical CLI command/flag/output reference.
+* Add runnable offline examples and wire `npm run examples:run` into check flows.
+* Add example doc blocks (Goal/Prereqs/Run/Expected output/Safety notes) for each example file.
+* Keep archive runtime behavior and CLI semantics unchanged.
+
 ### 3.0.0 (February 28, 2026)
 
 * Rewrite dir-archiver as a bytefold-backed orchestration layer over `open`, `detect`, `list`, `audit`, `extract`, `normalize`, and `write`.

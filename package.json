@@ -1,6 +1,6 @@
 {
   "name": "dir-archiver",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Bytefold-backed archive orchestration for directories/files across Node.js, Deno, and Bun.",
   "license": "MIT",
   "type": "module",
@@ -17,6 +17,13 @@
   },
   "files": [
     "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRACT.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "SUPPORT.md",
+    "docs",
     "dist",
     "jsr.json"
   ],
@@ -46,11 +53,13 @@
   "homepage": "https://github.com/Ismail-elkorchi/dir-archiver",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "examples:run": "node ./examples/run-all.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "npm run typecheck && eslint . --max-warnings=0",
-    "test": "npm run build && node --test test/api-snapshot.test.mjs test/operations.test.mjs test/cli.test.mjs test/matrix-node.test.mjs",
+    "test": "npm run build && node --test test/api-snapshot.test.mjs test/operations.test.mjs test/cli.test.mjs test/cli-docs-drift.test.mjs test/matrix-node.test.mjs",
+    "check:fast": "npm run lint && npm run test && npm run examples:run",
     "test:security": "npm run build && node --test test/security.test.mjs",
-    "check": "node ./scripts/verify-runtime-versions.mjs && node ./scripts/workflow-policy-check.mjs && node ./scripts/esm-only-guard.mjs && node ./scripts/docs-policy-check.mjs && npm run lint && npm run test && npm run test:security && npm run test:runtimes",
+    "check": "node ./scripts/verify-runtime-versions.mjs && node ./scripts/workflow-policy-check.mjs && node ./scripts/esm-only-guard.mjs && node ./scripts/docs-policy-check.mjs && npm run lint && npm run test && npm run examples:run && npm run test:security && npm run test:runtimes",
     "deps:fresh": "node ./scripts/direct-runtime-deps-freshness.mjs",
     "test:deno": "npm run build && deno run --allow-read --allow-write --allow-env --allow-sys test/deno-smoke.mjs",
     "test:bun": "npm run build && bun test/bun-smoke.mjs",

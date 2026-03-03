@@ -4,15 +4,21 @@
 
 ```sh
 npm ci
+npm run check:fast
 npm run check
 ```
+
+## Verification commands
+
+- `npm run check:fast`: lint + Node test suite (no runtime matrix).
+- `npm run check`: full repository gate (policy checks, lint, tests, security tests, runtime matrix).
 
 ## Change requirements
 
 - Keep ESM-only packaging.
 - Preserve Node + Deno + Bun compatibility.
 - Add/update tests for behavior changes.
-- Update `docs/V3_CONTRACT.md` for API or guarantee changes.
+- Update `CONTRACT.md` for API or guarantee changes.
 
 ## Runtime dependency freshness policy
 

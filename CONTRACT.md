@@ -1,16 +1,6 @@
----
-role: contract
-audience: maintainers, contributors, users
-source_of_truth: docs/V3_CONTRACT.md
-update_triggers:
-  - public API changes
-  - format support changes
-  - security-profile behavior changes
----
+# dir-archiver contract
 
-# dir-archiver v3 contract
-
-This document is the source of truth for `dir-archiver` v3 behavior.
+This document defines the current public behavior contract for `dir-archiver`.
 
 ## Runtime support
 
@@ -28,11 +18,15 @@ This document is the source of truth for `dir-archiver` v3 behavior.
 - `normalize(input, destination, options)`
 - `write(source, destination, options)`
 
-Profiles are passed through to bytefold (`compat | strict | agent`).
+Profiles are passed through to bytefold for read/audit/extract/normalize flows (`compat | strict | agent`).
+`WriteOptions.profile` and `WriteOptions.limits` are currently reserved and not forwarded by `write()`.
+
+Detailed option fields and examples are maintained in
+`docs/reference/options.md`.
 
 ## Format surface
 
-v3 accepts the full bytefold `ArchiveFormat` union:
+The package accepts the full bytefold `ArchiveFormat` union:
 
 `zip`, `tar`, `tgz`, `tar.gz`, `gz`, `bz2`, `tar.bz2`, `zst`, `tar.zst`, `br`, `tar.br`, `xz`, `tar.xz`.
 
@@ -40,11 +34,11 @@ v3 accepts the full bytefold `ArchiveFormat` union:
 
 When `write()` receives a directory source and the requested format is a single-file codec:
 
-- `gz` → `tar.gz`
-- `bz2` → `tar.bz2`
-- `xz` → `tar.xz`
-- `zst` → `tar.zst`
-- `br` → `tar.br`
+- `gz` -> `tar.gz`
+- `bz2` -> `tar.bz2`
+- `xz` -> `tar.xz`
+- `zst` -> `tar.zst`
+- `br` -> `tar.br`
 
 This conversion is deterministic and reported via `WriteResult.wrappedDirectoryCodec`.
 
@@ -73,7 +67,7 @@ Budget overruns fail with stable code `DIRARCHIVER_RESOURCE_LIMIT`.
 
 ## Error code stability
 
-Consumers must rely on `DirArchiverError.code`, not message text.
+Consumers rely on `DirArchiverError.code`, not message text.
 Current stable codes:
 
 - `DIRARCHIVER_INVALID_SOURCE`
@@ -85,8 +79,16 @@ Current stable codes:
 - `DIRARCHIVER_NORMALIZE_UNSUPPORTED`
 - `DIRARCHIVER_USAGE`
 
+## CLI exit codes
+
+- `0`: success
+- `1`: operational failure
+- `2`: usage/validation failure
+
+Canonical command/flag documentation lives in `docs/reference/cli.md`.
+
 ## API surface snapshot oracle
 
 `test/api-snapshot.test.mjs` compares module exports with
 `test/fixtures/api-surface.v3.json`.
-Any intentional API change must update both the contract and snapshot.
+Any intentional API change updates both this contract and the snapshot.
