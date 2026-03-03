@@ -6,10 +6,10 @@
     ".": "./src/index.ts"
   },
   "imports": {
-    "@ismail-elkorchi/bytefold": "jsr:@ismail-elkorchi/bytefold@^0.8.0",
-    "@ismail-elkorchi/bytefold/node": "jsr:@ismail-elkorchi/bytefold/node@^0.8.0",
-    "@ismail-elkorchi/bytefold/deno": "jsr:@ismail-elkorchi/bytefold/deno@^0.8.0",
-    "@ismail-elkorchi/bytefold/bun": "jsr:@ismail-elkorchi/bytefold/bun@^0.8.0"
+    "@ismail-elkorchi/bytefold": "jsr:@ismail-elkorchi/bytefold@^0.8.1",
+    "@ismail-elkorchi/bytefold/node": "jsr:@ismail-elkorchi/bytefold/node@^0.8.1",
+    "@ismail-elkorchi/bytefold/deno": "jsr:@ismail-elkorchi/bytefold/deno@^0.8.1",
+    "@ismail-elkorchi/bytefold/bun": "jsr:@ismail-elkorchi/bytefold/bun@^0.8.1"
   },
   "publish": {
     "include": [
