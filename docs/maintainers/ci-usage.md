@@ -1,4 +1,4 @@
-# How-to: use dir-archiver in CI pipelines
+# Maintainer how-to: use dir-archiver in CI pipelines
 
 ## Goal
 Normalize incoming archives and gate releases with deterministic audit results.
@@ -38,4 +38,4 @@ node dist/cli.js audit --input ./incoming.zip --profile agent --json
 ## Related reference
 - [CLI reference](../reference/cli.md)
 - [Options reference](../reference/options.md)
-- [Contract](../../CONTRACT.md)
+- [Contract](../reference/contract.md)

@@ -93,11 +93,11 @@ export interface ListEntry {
  * Archive listing response payload.
  */
 export interface ListResult {
-  /** Resolved archive format. */
+  /** Resolved archive format after detection/open completed. */
   format: ArchiveFormat;
-  /** Bytefold detection metadata, if available. */
+  /** Bytefold detection metadata used to choose `format`, when available. */
   detection: ArchiveDetectionReport | undefined;
-  /** Projected archive entries in iteration order. */
+  /** Projected archive entries in archive iteration order. */
   entries: ListEntry[];
 }
 
@@ -157,7 +157,7 @@ export interface ExtractOptions extends OpenOptions {
  * Extraction summary result.
  */
 export interface ExtractResult {
-  /** Source archive format that was extracted. */
+  /** Source archive format that was extracted to disk. */
   format: ArchiveFormat;
   /** Absolute destination directory path used for extraction. */
   destination: string;
@@ -213,7 +213,7 @@ export interface WriteResult {
   source: string;
   /** Absolute destination archive path that was written. */
   destination: string;
-  /** Number of archive entries written. */
+  /** Number of archive entries written to the output archive. */
   entryCount: number;
   /** Whether a directory source was wrapped in a tar-based single-file codec. */
   wrappedDirectoryCodec: boolean;

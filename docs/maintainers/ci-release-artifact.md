@@ -1,4 +1,4 @@
-# How-to: create a CI release artifact
+# Maintainer how-to: create a CI release artifact
 
 ## Goal
 Produce a release ZIP in CI and emit a machine-readable JSON summary.
@@ -36,4 +36,4 @@ node dist/cli.js detect --input ./release.zip --json
 ## Related reference
 - [CLI reference](../reference/cli.md)
 - [Options reference](../reference/options.md)
-- [Contract](../../CONTRACT.md)
+- [Contract](../reference/contract.md)

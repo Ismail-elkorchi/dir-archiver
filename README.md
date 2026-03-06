@@ -1,6 +1,8 @@
 # dir-archiver
 
-Deterministic directory archiving and extraction over zip, tar, and layered compression for Node.js, Deno, and Bun.
+Deterministic directory archiving and extraction over zip, tar, and layered compression.
+
+Supports Node.js, Deno, and Bun.
 
 ## What it is
 
@@ -45,13 +47,13 @@ console.log(detected.format);
 
 - Module system: ESM-only.
 - Runtimes: Node `>=24`, current Deno, current Bun.
-- CLI and API contracts are documented in `CONTRACT.md`.
+- CLI and API contracts are documented in [Contract](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/CONTRACT.md).
 
 ## Documentation
 
-- [Docs index](./docs/index.md)
-- [Tutorial: bundle a plugin directory](./docs/tutorial/bundle-a-plugin.md)
-- [Reference: CLI](./docs/reference/cli.md)
+- [Docs index](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/index.md)
+- [Tutorial: bundle a plugin directory](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/tutorial/bundle-a-plugin.md)
+- [Reference: CLI](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/reference/cli.md)
 
 ## Verification
 

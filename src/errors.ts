@@ -27,6 +27,27 @@ export type DirArchiverErrorCode =
   | 'DIRARCHIVER_USAGE';
 
 /**
+ * Stable JSON payload emitted by `DirArchiverError.toJSON()`.
+ *
+ * This is the machine-readable error shape used by the CLI `--json` surface and
+ * by API consumers that persist `DirArchiverError` objects to logs or reports.
+ */
+export interface DirArchiverErrorJson {
+  /** Schema version for the serialized error payload. */
+  schemaVersion: '1';
+  /** Stable error class name used in serialized output. */
+  name: 'DirArchiverError';
+  /** Stable machine-readable error code. */
+  code: DirArchiverErrorCode;
+  /** Human-readable summary of the failure. */
+  message: string;
+  /** Optional remediation hint when the error carries one. */
+  hint?: string;
+  /** Optional structured context for logs and diagnostics. */
+  context?: Record<string, unknown>;
+}
+
+/**
  * Structured error contract for dir-archiver v3.
  */
 export class DirArchiverError extends Error {
@@ -65,15 +86,11 @@ export class DirArchiverError extends Error {
 
   /**
    * Serializes the error into the stable JSON shape used by the CLI.
+   *
+   * The returned object always includes `schemaVersion`, `name`, `code`, and
+   * `message`. Optional `hint` and `context` keys are omitted when unset.
    */
-  toJSON(): {
-    schemaVersion: '1';
-    name: 'DirArchiverError';
-    code: DirArchiverErrorCode;
-    message: string;
-    hint?: string;
-    context?: Record<string, unknown>;
-  } {
+  toJSON(): DirArchiverErrorJson {
     return {
       schemaVersion: '1',
       name: 'DirArchiverError',
