@@ -1,6 +1,6 @@
 # dir-archiver
 
-Archive orchestration for detect/list/audit/extract/normalize/write flows across Node, Deno, and Bun.
+Deterministic directory archiving and extraction over zip, tar, and layered compression for Node.js, Deno, and Bun.
 
 ## What it is
 
@@ -29,12 +29,6 @@ await extract("./project.zip", "./out", { profile: "strict" });
 console.log(detected.format);
 ```
 
-## Options reference
-
-- [Options reference](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/reference/options.md)
-- [CLI reference](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/reference/cli.md)
-- [10-minute tutorial: bundle a plugin directory](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/tutorial/bundle-a-plugin.md)
-
 ## When not to use
 
 - You only need a low-level parser for a single format.
@@ -53,17 +47,11 @@ console.log(detected.format);
 - Runtimes: Node `>=24`, current Deno, current Bun.
 - CLI and API contracts are documented in `CONTRACT.md`.
 
-## Links
+## Documentation
 
-- [Docs index](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/index.md)
-- Reference:
-  - [Reference index](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/reference/index.md)
-  - [Contract](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/CONTRACT.md)
-  - [Security policy](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/SECURITY.md)
-- How-to:
-  - [How-to index](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/how-to/index.md)
-  - [Contributing](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/CONTRIBUTING.md)
-- Explanation: [explanation index](https://github.com/Ismail-elkorchi/dir-archiver/blob/main/docs/explanation/index.md)
+- [Docs index](./docs/index.md)
+- [Tutorial: bundle a plugin directory](./docs/tutorial/bundle-a-plugin.md)
+- [Reference: CLI](./docs/reference/cli.md)
 
 ## Verification
 

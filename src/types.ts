@@ -12,6 +12,9 @@ export type { ArchiveFormat, ArchiveLimits, ArchiveProfile };
 
 /**
  * Accepted input shapes for archive read operations.
+ *
+ * String paths and `URL` objects are the most common inputs, but callers can
+ * also supply raw bytes or web streams when the archive is already in memory.
  */
 export type DirArchiverInput =
   | string
@@ -62,7 +65,9 @@ export interface OpenOptions
  * Format detection result.
  */
 export interface DetectResult {
+  /** Resolved archive format after detection. */
   format: ArchiveFormat;
+  /** Bytefold detection metadata, if the runtime produced it. */
   detection: ArchiveDetectionReport | undefined;
 }
 
@@ -70,11 +75,17 @@ export interface DetectResult {
  * Single archive entry projection used by list responses.
  */
 export interface ListEntry {
+  /** Entry format as exposed by the underlying reader. */
   format: ArchiveFormat;
+  /** Entry path inside the archive, normalized to forward slashes. */
   name: string;
+  /** Entry size encoded as a string for JSON-safe transport. */
   size: string;
+  /** Whether the entry materializes as a directory. */
   isDirectory: boolean;
+  /** Whether the entry is a symbolic link. */
   isSymlink: boolean;
+  /** Link target when the entry is a symbolic link. */
   linkName?: string | undefined;
 }
 
@@ -82,8 +93,11 @@ export interface ListEntry {
  * Archive listing response payload.
  */
 export interface ListResult {
+  /** Resolved archive format. */
   format: ArchiveFormat;
+  /** Bytefold detection metadata, if available. */
   detection: ArchiveDetectionReport | undefined;
+  /** Projected archive entries in iteration order. */
   entries: ListEntry[];
 }
 
@@ -99,6 +113,7 @@ export type AuditOptions = OpenOptions;
  * Normalize operation options.
  */
 export interface NormalizeOptions extends OpenOptions {
+  /** Request deterministic normalization when the runtime supports the knob. */
   deterministic?: boolean | undefined;
 }
 
@@ -106,7 +121,9 @@ export interface NormalizeOptions extends OpenOptions {
  * Normalize operation result payload.
  */
 export interface NormalizeResult {
+  /** Source archive format that was normalized. */
   format: ArchiveFormat;
+  /** Detailed normalization report from bytefold. */
   report: ArchiveNormalizeReport;
 }
 
@@ -140,11 +157,17 @@ export interface ExtractOptions extends OpenOptions {
  * Extraction summary result.
  */
 export interface ExtractResult {
+  /** Source archive format that was extracted. */
   format: ArchiveFormat;
+  /** Absolute destination directory path used for extraction. */
   destination: string;
+  /** Number of file entries written to disk. */
   extractedFiles: number;
+  /** Number of directory entries created on disk. */
   extractedDirectories: number;
+  /** Number of entries skipped due to policy, such as disallowed symlinks. */
   skippedEntries: number;
+  /** Audit issues collected before or during extraction. */
   issues: ArchiveIssue[];
 }
 
@@ -184,10 +207,15 @@ export interface WriteOptions {
  * Archive writer result payload.
  */
 export interface WriteResult {
+  /** Archive format emitted to the destination path. */
   format: ArchiveFormat;
+  /** Absolute source path that was archived. */
   source: string;
+  /** Absolute destination archive path that was written. */
   destination: string;
+  /** Number of archive entries written. */
   entryCount: number;
+  /** Whether a directory source was wrapped in a tar-based single-file codec. */
   wrappedDirectoryCodec: boolean;
 }
 
@@ -195,7 +223,9 @@ export interface WriteResult {
  * Usage-error shape emitted by CLI parsing.
  */
 export interface CliUsageError {
+  /** Human-readable summary of the CLI validation failure. */
   message: string;
+  /** Individual issues returned by the command-line parser. */
   issues: readonly {
     code: string;
     message: string;
@@ -206,11 +236,18 @@ export interface CliUsageError {
  * Canonical command identifiers supported by the CLI contract.
  */
 export interface SupportedCommandMap {
+  /** Literal identifier for the `open` command. */
   open: 'open';
+  /** Literal identifier for the `detect` command. */
   detect: 'detect';
+  /** Literal identifier for the `list` command. */
   list: 'list';
+  /** Literal identifier for the `audit` command. */
   audit: 'audit';
+  /** Literal identifier for the `extract` command. */
   extract: 'extract';
+  /** Literal identifier for the `normalize` command. */
   normalize: 'normalize';
+  /** Literal identifier for the `write` command. */
   write: 'write';
 }

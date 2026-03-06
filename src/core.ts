@@ -42,7 +42,17 @@ const DIRECTORY_TO_SINGLE_FILE_CODEC = {
 const writeUnsupportedFormats = new Set<ArchiveFormat>(['tar.bz2', 'bz2', 'tar.xz', 'xz']);
 
 /**
- * Opens an archive input with bytefold runtime bindings.
+ * Opens an archive and returns the live bytefold reader.
+ *
+ * Use this when you need direct access to low-level reader capabilities such
+ * as `entries()`, `audit()`, or normalization support checks. The returned
+ * reader is not auto-disposed, so callers should close or dispose it when the
+ * active runtime exposes a cleanup hook.
+ *
+ * @param input Archive bytes, path, URL, stream, or blob to open.
+ * @param options Format hints, safety profile, limits, and cancellation
+ * signal forwarded to bytefold.
+ * @returns A live `ArchiveReader` for advanced inspection flows.
  */
 export const open = async (input: DirArchiverInput, options: OpenOptions = {}): Promise<ArchiveReader> => {
   const runtime = await loadRuntimeBindings();
@@ -50,7 +60,14 @@ export const open = async (input: DirArchiverInput, options: OpenOptions = {}): 
 };
 
 /**
- * Detects archive format and exposes bytefold detection metadata.
+ * Detects an archive format without extracting or listing its contents.
+ *
+ * This is the lightest-weight way to confirm the container and compression
+ * layers before choosing a follow-up operation.
+ *
+ * @param input Archive bytes, path, URL, stream, or blob to inspect.
+ * @param options Format hints and parse controls applied during detection.
+ * @returns The resolved archive format and any bytefold detection metadata.
  */
 export const detect = async (input: DirArchiverInput, options: OpenOptions = {}): Promise<DetectResult> => {
   const reader = await open(input, options);
@@ -65,7 +82,15 @@ export const detect = async (input: DirArchiverInput, options: OpenOptions = {})
 };
 
 /**
- * Lists archive entries without extracting to disk.
+ * Lists archive entries without extracting anything to disk.
+ *
+ * Each entry is projected into a JSON-safe summary so CLI and API callers can
+ * inspect paths, sizes, and link metadata before deciding to extract.
+ *
+ * @param input Archive bytes, path, URL, stream, or blob to inspect.
+ * @param options Format hints and parse controls applied while reading the
+ * archive directory.
+ * @returns Archive metadata plus the entry summaries visible to callers.
  */
 export const list = async (input: DirArchiverInput, options: OpenOptions = {}): Promise<ListResult> => {
   const reader = await open(input, options);
@@ -92,7 +117,15 @@ export const list = async (input: DirArchiverInput, options: OpenOptions = {}): 
 };
 
 /**
- * Runs bytefold audit checks for the selected safety profile.
+ * Audits an archive against the selected bytefold safety profile.
+ *
+ * Use this before extraction when you need a report of unsafe paths, link
+ * entries, or format-specific concerns without writing files to disk.
+ *
+ * @param input Archive bytes, path, URL, stream, or blob to audit.
+ * @param options Safety profile, limits, and format hints used during the
+ * audit pass.
+ * @returns The bytefold audit report for the requested profile.
  */
 export const audit = async (
   input: DirArchiverInput,
@@ -107,7 +140,20 @@ export const audit = async (
 };
 
 /**
- * Writes a normalized deterministic archive when supported by the format.
+ * Rewrites an archive into its normalized deterministic representation.
+ *
+ * Normalization is available only when the opened archive reader exposes
+ * bytefold normalization support. Unsupported formats throw
+ * `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+ *
+ * @param input Archive bytes, path, URL, stream, or blob to normalize.
+ * @param destination Output archive path that will receive the normalized
+ * bytes.
+ * @param options Format hints and normalization controls applied during the
+ * read and write pass.
+ * @returns The source format and bytefold normalization report.
+ * @throws {DirArchiverError} When the selected archive format cannot be
+ * normalized by the active runtime.
  */
 export const normalize = async (
   input: DirArchiverInput,
@@ -140,7 +186,18 @@ export const normalize = async (
 };
 
 /**
- * Extracts entries to a destination directory with safety enforcement.
+ * Extracts an archive into a destination directory with safety enforcement.
+ *
+ * `extract()` defaults to `profile: 'strict'`. Under `strict` or `agent`, the
+ * archive is audited before bytes are written to disk and unsafe entries raise
+ * a `DirArchiverError` instead of being silently materialized.
+ *
+ * @param input Archive bytes, path, URL, stream, or blob to extract.
+ * @param destination Directory that will receive extracted files.
+ * @param options Extraction policy, safety profile, and resource limits.
+ * @returns A summary of what was extracted, skipped, and flagged.
+ * @throws {DirArchiverError} When audit checks fail, resource limits are
+ * exceeded, or unsupported entry types are encountered.
  */
 export const extract = async (
   input: DirArchiverInput,
@@ -256,7 +313,19 @@ export const extract = async (
 };
 
 /**
- * Writes an archive from a file or directory source.
+ * Writes an archive from a file or directory source path.
+ *
+ * Directory sources are traversed deterministically. When callers request a
+ * single-file compression codec such as `gz` for a directory source,
+ * `dir-archiver` wraps the directory in the corresponding tar-based container
+ * (`tar.gz`, `tar.zst`, and so on).
+ *
+ * @param source File or directory path to archive.
+ * @param destination Output archive path.
+ * @param options Format selection, traversal rules, and exclusion controls.
+ * @returns A summary of the emitted archive format and entry count.
+ * @throws {DirArchiverError} When the requested output format is unsupported by
+ * the active bytefold writer.
  */
 export const write = async (
   source: string,

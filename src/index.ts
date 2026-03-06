@@ -16,6 +16,7 @@ export {
 };
 
 export { DirArchiverError } from './errors.js';
+export type { DirArchiverErrorCode } from './errors.js';
 export type {
   ArchiveFormat,
   ArchiveLimits,
@@ -35,6 +36,12 @@ export type {
   WriteResult
 } from './types.js';
 
+/**
+ * Namespace-style default export for consumers who prefer
+ * `import dirArchiver from "dir-archiver"`.
+ *
+ * It mirrors the named exports exactly and does not add extra behavior.
+ */
 const api = {
   open,
   detect,

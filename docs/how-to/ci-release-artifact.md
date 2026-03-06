@@ -18,15 +18,22 @@ node examples/ci-release-artifact.mjs
 Equivalent CLI flow:
 
 ```sh
-dir-archiver write --source ./dist --output ./release.zip --include-base-directory --json
-dir-archiver detect --input ./release.zip --json
+node dist/cli.js write --source ./dist --output ./release.zip --include-base-directory --json
+node dist/cli.js detect --input ./release.zip --json
 ```
 
 ## What you should see
 - JSON output containing `artifact`, `format`, and `entryCount`.
 - `format` is `zip` when the destination extension is `.zip`.
 
-## Safety notes
-> [!NOTE]
-> Keep `--json` enabled in CI so build steps can parse deterministic fields
-> instead of scraping human-readable text.
+## Common failure modes
+- `--json` is omitted, so CI jobs have to scrape human-readable output.
+- The destination extension does not match the intended format, so inference
+  chooses the wrong archive type.
+- `--include-base-directory` is skipped and extracted files do not land under a
+  stable root folder.
+
+## Related reference
+- [CLI reference](../reference/cli.md)
+- [Options reference](../reference/options.md)
+- [Contract](../../CONTRACT.md)

@@ -9,25 +9,44 @@ Write an archive, detect its format, and extract it with strict safety defaults.
 - `npm run build`
 
 ## Copy/paste
-```ts
-import { write, detect, extract } from "dir-archiver";
+```sh
+tmpdir="$(mktemp -d)"
+mkdir -p "$tmpdir/project"
+printf 'hello from tutorial\n' > "$tmpdir/project/hello.txt"
 
-await write("./project", "./project.zip", {
-  format: "zip",
-  includeBaseDirectory: true,
-});
+node dist/cli.js write \
+  --source "$tmpdir/project" \
+  --output "$tmpdir/project.zip" \
+  --include-base-directory \
+  --json
 
-const detected = await detect("./project.zip");
-await extract("./project.zip", "./out", { profile: "strict" });
+node dist/cli.js detect --input "$tmpdir/project.zip" --json
 
-console.log(detected.format);
+node dist/cli.js extract \
+  --input "$tmpdir/project.zip" \
+  --output "$tmpdir/out" \
+  --profile strict \
+  --json
+
+find "$tmpdir/out" -maxdepth 3 -type f | sort
+rm -rf "$tmpdir"
 ```
 
 ## What you should see
-- `detected.format` prints `zip`.
-- `./out` contains the extracted files.
+- `write` reports `format: "zip"` and `wrappedDirectoryCodec: false`.
+- `detect` reports `format: "zip"` plus a `detection` object.
+- `extract` reports at least one extracted file and one extracted directory.
+- `find` prints a path ending in `/project/hello.txt`.
 
-## Safety notes
-> [!NOTE]
-> Use `profile: "strict"` for extraction unless you have a documented reason to
-> weaken constraints.
+## Common failure modes
+- `--include-base-directory` is omitted and the extracted files land directly
+  in the destination root.
+- The output archive extension is missing or mismatched, so format inference is
+  not what you expected.
+- Extraction is run with `compat` on untrusted input, which weakens path and
+  entry checks.
+
+## Related reference
+- [CLI reference](../reference/cli.md)
+- [Options reference](../reference/options.md)
+- [Contract](../../CONTRACT.md)
