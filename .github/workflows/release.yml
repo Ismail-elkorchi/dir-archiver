@@ -30,7 +30,7 @@ jobs:
         run: |
           node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('tools/runtime-versions.json','utf8'));fs.appendFileSync(process.env.GITHUB_OUTPUT,'node_pinned='+p.node.pinned+'\\n');"
       - name: Setup Node
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ steps.runtime-policy.outputs.node_pinned }}
       - name: Runtime dependency freshness gate
@@ -76,7 +76,7 @@ jobs:
         run: |
           node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('tools/runtime-versions.json','utf8'));fs.appendFileSync(process.env.GITHUB_OUTPUT,'node_pinned='+p.node.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'deno_pinned='+p.deno.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'bun_pinned='+p.bun.pinned+'\\n');"
       - name: Setup Node
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ steps.runtime-policy.outputs.node_pinned }}
           registry-url: https://registry.npmjs.org
@@ -86,7 +86,7 @@ jobs:
         with:
           deno-version: ${{ steps.runtime-policy.outputs.deno_pinned }}
       - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2.1.3
         with:
           bun-version: ${{ steps.runtime-policy.outputs.bun_pinned }}
       - name: Install
@@ -126,7 +126,7 @@ jobs:
         run: |
           node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('tools/runtime-versions.json','utf8'));fs.appendFileSync(process.env.GITHUB_OUTPUT,'node_pinned='+p.node.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'deno_pinned='+p.deno.pinned+'\\n');fs.appendFileSync(process.env.GITHUB_OUTPUT,'bun_pinned='+p.bun.pinned+'\\n');"
       - name: Setup Node
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ steps.runtime-policy.outputs.node_pinned }}
           cache: npm
@@ -135,7 +135,7 @@ jobs:
         with:
           deno-version: ${{ steps.runtime-policy.outputs.deno_pinned }}
       - name: Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2.1.3
         with:
           bun-version: ${{ steps.runtime-policy.outputs.bun_pinned }}
       - name: Install
