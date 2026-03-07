@@ -1,26 +1,57 @@
 version: 2
-# Version updates are queue-limited here; security updates are triaged as a separate Dependabot channel.
-# See: repository security alerts / Dependabot security updates for vulnerability remediation flow.
 updates:
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: monthly
-    open-pull-requests-limit: 1
-    groups:
-      github-actions:
-        patterns:
-          - '*'
-    commit-message:
-      prefix: deps(ci)
+  # Version updates are controlled by groups and open-pull-requests-limit.
+  # Security updates are a separate channel managed by GitHub.
   - package-ecosystem: npm
-    directory: /
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: "Africa/Casablanca"
+    open-pull-requests-limit: 1
+    rebase-strategy: disabled
+    labels:
+      - dependencies
+      - security
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 7
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      npm-major:
+        patterns:
+          - "*"
+        update-types:
+          - major
+
+  - package-ecosystem: github-actions
+    directory: "/"
     schedule:
       interval: monthly
+      day: monday
+      time: "07:00"
+      timezone: "Africa/Casablanca"
     open-pull-requests-limit: 1
+    rebase-strategy: disabled
+    labels:
+      - dependencies
+      - security
     groups:
-      dependencies:
+      actions-minor-patch:
         patterns:
-          - '*'
-    commit-message:
-      prefix: deps
+          - "*"
+        update-types:
+          - minor
+          - patch
+      actions-major:
+        patterns:
+          - "*"
+        update-types:
+          - major
