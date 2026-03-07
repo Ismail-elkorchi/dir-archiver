@@ -1,14 +1,18 @@
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const run = async () => {
-  const tagInput = process.env.GITHUB_REF_NAME ?? process.argv[2] ?? '';
+export async function extractChangelogSectionByTag(tagInput, options = {}) {
   const tagName = normalizeTag(tagInput);
   if (!tagName.startsWith('v')) {
     throw new Error(`changelog-section: expected v-prefixed tag, received "${tagName}"`);
   }
-  const version = tagName.slice(1);
+  return extractChangelogSection(tagName.slice(1), options);
+}
 
-  const source = (await readFile('CHANGELOG.md', 'utf8')).replace(/\r\n/g, '\n');
+export async function extractChangelogSection(version, options = {}) {
+  const changelogPath = options.changelogPath ?? 'CHANGELOG.md';
+  const source = (await readFile(changelogPath, 'utf8')).replace(/\r\n/g, '\n');
   const lines = source.split('\n');
   const startMatch = findSectionStart(lines, version);
   if (!startMatch) {
@@ -29,10 +33,10 @@ const run = async () => {
     throw new Error(`changelog-section: extracted section for ${version} is empty`);
   }
 
-  process.stdout.write(`${section}\n`);
-};
+  return section;
+}
 
-function normalizeTag(value) {
+export function normalizeTag(value) {
   if (!value) return '';
   if (value.startsWith('refs/tags/')) {
     return value.slice('refs/tags/'.length);
@@ -68,7 +72,19 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-run().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
-});
+const run = async () => {
+  const tagInput = process.env.GITHUB_REF_NAME ?? process.argv[2] ?? '';
+  const section = await extractChangelogSectionByTag(tagInput);
+  process.stdout.write(`${section}\n`);
+};
+
+const isMain = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false;
+
+if (isMain) {
+  run().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+}

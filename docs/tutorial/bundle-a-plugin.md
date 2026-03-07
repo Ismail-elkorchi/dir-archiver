@@ -10,18 +10,24 @@ development files.
 - `npm run build`
 
 ## Copy/paste
-CLI-style command:
-
 ```sh
-dir-archiver write \
-  --includebasedir \
-  --src . \
-  --dest ../bundle.zip \
-  --exclude .git \
+tmpdir="$(mktemp -d)"
+mkdir -p "$tmpdir/plugin/src" "$tmpdir/plugin/node_modules/demo"
+printf 'export const pluginName = \"demo\";\n' > "$tmpdir/plugin/src/index.js"
+printf '{\"name\":\"demo\"}\n' > "$tmpdir/plugin/package.json"
+printf 'ignore me\n' > "$tmpdir/plugin/package-lock.json"
+printf 'ignore me\n' > "$tmpdir/plugin/node_modules/demo/index.js"
+
+node dist/cli.js write \
+  --source "$tmpdir/plugin" \
+  --output "$tmpdir/bundle.zip" \
+  --include-base-directory \
   --exclude node_modules \
   --exclude package-lock.json \
-  --exclude package.json \
   --json
+
+node dist/cli.js list --input "$tmpdir/bundle.zip" --json
+rm -rf "$tmpdir"
 ```
 
 Runnable example file:
@@ -32,11 +38,18 @@ node examples/bundle-a-plugin.mjs
 
 ## What you should see
 - A ZIP file is created.
-- JSON output reports `format: "zip"`.
-- Excluded paths (`.git`, `node_modules`, lock/package manifests) are omitted.
+- `write` reports `format: "zip"` and a stable `entryCount`.
+- `list` shows entries rooted under the plugin directory and does not include
+  `node_modules` or `package-lock.json`.
 
-## Safety notes
-> [!NOTE]
-> `--includebasedir` preserves one top-level folder in the archive. This keeps
-> extraction deterministic and prevents files from scattering into whichever
-> directory the user extracts into.
+## Common failure modes
+- The output extension is missing, so format inference falls back to the wrong
+  archive type.
+- `includeBaseDirectory` is omitted and extracted files scatter directly into
+  the destination root.
+- Exclude patterns miss local build artifacts, which leaks development files
+  into the distributable archive.
+
+## Related reference
+- [CLI reference](../reference/cli.md)
+- [Options reference](../reference/options.md)

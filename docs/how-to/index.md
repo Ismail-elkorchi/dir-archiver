@@ -1,7 +1,7 @@
 # How-to index
 
-Task guides:
+Pick the guide that matches the job:
 
-- [Create CI release artifacts](ci-release-artifact.md)
+- [Use CLI JSON output and exit codes](cli-json-and-exit-codes.md)
+- [Troubleshoot common failures](troubleshoot-common-failures.md)
 - [Extract untrusted archives safely](extract-untrusted.md)
-- [Use in CI pipelines](ci-usage.md)

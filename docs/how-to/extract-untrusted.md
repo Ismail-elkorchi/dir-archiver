@@ -10,7 +10,13 @@ into a filesystem or resource-exhaustion risk.
 - `npm run build`
 
 ## Copy/paste
-Recommended pattern (audit first, then extract with limits):
+Runnable example file:
+
+```sh
+node examples/extract-untrusted.mjs
+```
+
+Equivalent API pattern (audit first, then extract with limits):
 
 ```ts
 import { audit, extract } from "dir-archiver";
@@ -29,29 +35,20 @@ await extract(input, "./out", {
 });
 ```
 
-Runnable example file:
-
-```sh
-node examples/extract-untrusted.mjs
-```
-
 ## What you should see
 - The audit step succeeds before extraction starts.
 - The example intentionally sets a low extraction limit and reports
   `DIRARCHIVER_RESOURCE_LIMIT`.
 
-## Safety notes
-> [!CAUTION]
-> Never extract untrusted archives without limits. Attackers can use deeply
-> nested or highly compressed entries to trigger large disk writes
-> (`CWE-409`-style decompression amplification).
->
-> [!CAUTION]
-> Keep `profile: "strict"` or `"agent"` for untrusted input. These profiles
-> reject traversal-style paths and unsafe entry classes during extraction.
->
-> [!WARNING]
-> Symlink and hardlink handling changes the risk envelope:
-> - `allowSymlinks` defaults to `false`.
-> - `allowHardlinks` currently remains unsupported and triggers
->   `DIRARCHIVER_UNSUPPORTED_ENTRY`.
+## Common failure modes
+- `profile: "compat"` is used for hostile input, which weakens pre-extract
+  safety checks.
+- Limits are left unset, so decompression amplification can consume far more
+  disk than expected.
+- Callers treat file creation as success instead of checking the returned issues
+  and skipped-entry counts.
+
+## Related reference
+- [CLI reference](../reference/cli.md)
+- [Options reference](../reference/options.md)
+- [Contract](../../CONTRACT.md)
