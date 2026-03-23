@@ -86,12 +86,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.3.2",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.54.0",
-    "eslint": "^10.0.2",
-    "globals": "^17.3.0",
+    "eslint": "^10.0.3",
+    "globals": "^17.4.0",
     "typescript": "^5.3.3",
-    "yauzl": "^3.2.0"
+    "yauzl": "^3.2.1"
   }
 }
