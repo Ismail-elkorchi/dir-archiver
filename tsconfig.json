@@ -2,8 +2,9 @@
   "compilerOptions": {
     "target": "ES2019",
     "module": "NodeNext",
-    "lib": ["ES2019", "DOM"],
+    "lib": ["ES2019", "ESNext", "DOM"],
     "moduleResolution": "NodeNext",
+    "types": ["node"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "outDir": "dist",
