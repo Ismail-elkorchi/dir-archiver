@@ -134,6 +134,9 @@ function normalizeNodes(documentTree, sourceFile = 'src/index.ts') {
   if (Array.isArray(documentTree)) {
     return documentTree;
   }
+  if (Array.isArray(documentTree.nodes)) {
+    return documentTree.nodes;
+  }
   if (documentTree.nodes && typeof documentTree.nodes === 'object' && !Array.isArray(documentTree.nodes)) {
     const sourceUrl = getSourceFileUrl(documentTree.nodes, sourceFile);
     if (sourceUrl !== '') {
