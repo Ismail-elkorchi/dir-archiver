@@ -4,6 +4,12 @@
 
 * No entries yet.
 
+### 3.0.2 (June 19, 2026)
+
+* Fix JSR documentation checks for current and pinned Deno doc output.
+* Update `argv-flags` to 1.0.5.
+* Bump GitHub Actions dependencies in CI and release workflows.
+
 ### 3.0.1 (March 3, 2026)
 
 * Rework README/docs information architecture for fast first-use onboarding.
