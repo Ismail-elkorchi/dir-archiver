@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 const ROOT = process.cwd();
@@ -23,7 +24,7 @@ const run = async () => {
   );
 
   const documentTree = JSON.parse(stdout);
-  const docsByPath = collectDocs(Array.isArray(documentTree?.nodes) ? documentTree.nodes : []);
+  const docsByPath = collectDocs(documentTree, sourceFile);
   const failures = [];
 
   for (const symbolPath of requiredDocs) {
@@ -45,9 +46,10 @@ const run = async () => {
   }
 };
 
-function collectDocs(nodes) {
+function collectDocs(nodes, sourceFile) {
   const docsByPath = new Map();
-  for (const node of nodes) {
+  const normalizedNodes = normalizeNodes(nodes, sourceFile);
+  for (const node of normalizedNodes) {
     const rootName = node?.isDefault === true ? 'default' : String(node?.name ?? '');
     if (rootName.length === 0) {
       continue;
@@ -58,6 +60,20 @@ function collectDocs(nodes) {
 }
 
 function collectNodeDocs(pathPrefix, node, docsByPath) {
+  const declarations = Array.isArray(node?.declarations) ? node.declarations : [];
+
+  if (declarations.length === 1) {
+    collectDeclarationDocs(pathPrefix, declarations[0], docsByPath);
+    return;
+  }
+
+  if (declarations.length > 1) {
+    for (let index = 0; index < declarations.length; index += 1) {
+      collectDeclarationDocs(`${pathPrefix}#${index}`, declarations[index], docsByPath);
+    }
+    return;
+  }
+
   docsByPath.set(pathPrefix, normalizeDoc(node?.jsDoc));
 
   if (node?.kind === 'class') {
@@ -69,6 +85,32 @@ function collectNodeDocs(pathPrefix, node, docsByPath) {
   if (node?.kind === 'interface') {
     collectMembers(pathPrefix, node.interfaceDef?.properties, docsByPath);
     collectMembers(pathPrefix, node.interfaceDef?.methods, docsByPath);
+  }
+
+  if (node?.kind === 'enum') {
+    collectMembers(pathPrefix, node.enumDef?.members, docsByPath);
+  }
+}
+
+function collectDeclarationDocs(pathPrefix, declaration, docsByPath) {
+  if (!declaration || typeof declaration !== 'object') {
+    return;
+  }
+
+  docsByPath.set(pathPrefix, normalizeDoc(declaration.jsDoc));
+  const def = declaration.def;
+  if (!def || typeof def !== 'object') {
+    return;
+  }
+
+  collectMembers(pathPrefix, def.properties, docsByPath);
+  collectMembers(pathPrefix, def.methods, docsByPath);
+  collectMembers(pathPrefix, def.interfaceDef?.properties, docsByPath);
+  collectMembers(pathPrefix, def.interfaceDef?.methods, docsByPath);
+  collectMembers(pathPrefix, def.classDef?.properties, docsByPath);
+  collectMembers(pathPrefix, def.classDef?.methods, docsByPath);
+  if (declaration.kind === 'enum' || def.kind === 'enum') {
+    collectMembers(pathPrefix, def.members, docsByPath);
   }
 }
 
@@ -83,6 +125,44 @@ function collectMembers(pathPrefix, members, docsByPath) {
     }
     docsByPath.set(`${pathPrefix}.${name}`, normalizeDoc(member?.jsDoc));
   }
+}
+
+function normalizeNodes(documentTree, sourceFile = 'src/index.ts') {
+  if (!documentTree) {
+    return [];
+  }
+  if (Array.isArray(documentTree)) {
+    return documentTree;
+  }
+  if (documentTree.nodes && typeof documentTree.nodes === 'object' && !Array.isArray(documentTree.nodes)) {
+    const sourceUrl = getSourceFileUrl(documentTree.nodes, sourceFile);
+    if (sourceUrl !== '') {
+      const moduleNode = documentTree.nodes[sourceUrl];
+      if (moduleNode) {
+        return moduleNode.symbols ?? [];
+      }
+    }
+
+    const fallback = Object.values(documentTree.nodes).find((value) => Array.isArray(value?.symbols));
+    if (fallback && Array.isArray(fallback.symbols)) {
+      return fallback.symbols;
+    }
+  }
+  return [];
+}
+
+function getSourceFileUrl(nodesMap, sourceFile) {
+  const candidate = path.resolve(process.cwd(), sourceFile);
+  const preferred = pathToFileURL(candidate).href;
+  if (nodesMap[preferred]) {
+    return preferred;
+  }
+  const fallback = path.resolve(process.cwd(), String(sourceFile));
+  const fallbackUrl = pathToFileURL(fallback).href;
+  if (nodesMap[fallbackUrl]) {
+    return fallbackUrl;
+  }
+  return '';
 }
 
 function normalizeDoc(jsDoc) {
