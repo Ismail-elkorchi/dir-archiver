@@ -20,6 +20,9 @@ export type { DirArchiverErrorCode, DirArchiverErrorJson } from './errors.js';
 export type {
   ArchiveFormat,
   ArchiveLimits,
+  ArchiveDetectionReport,
+  ArchiveIssue,
+  ArchiveNormalizeReport,
   ArchiveProfile,
   CliUsageError,
   DetectResult,

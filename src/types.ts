@@ -1,14 +1,24 @@
 import type {
-  ArchiveDetectionReport,
   ArchiveFormat,
-  ArchiveIssue,
-  ArchiveLimits,
-  ArchiveNormalizeReport,
-  ArchiveOpenOptions,
   ArchiveProfile
 } from '@ismail-elkorchi/bytefold';
 
-export type { ArchiveFormat, ArchiveLimits, ArchiveProfile };
+export type {
+  ArchiveFormat,
+  ArchiveProfile,
+} from '@ismail-elkorchi/bytefold';
+
+/** Resource limit configuration accepted by `open`, `audit`, and extraction flows. */
+export type ArchiveLimits = Record<string, unknown>;
+
+/** Issue shape emitted for archive read/normalize/extract failures. */
+export type ArchiveIssue = Record<string, unknown>;
+
+/** Public detection report shape aligned with runtime diagnostics payloads. */
+export type ArchiveDetectionReport = Record<string, unknown>;
+
+/** Public normalize report shape for deterministic archive rewrites. */
+export type ArchiveNormalizeReport = Record<string, unknown>;
 
 /**
  * Accepted input shapes for archive read operations.
@@ -34,31 +44,31 @@ export interface OpenOptions
   /**
    * Explicit format override when callers already know archive type.
    */
-  format?: ArchiveOpenOptions['format'] | undefined;
+  format?: ArchiveFormat | 'auto' | undefined;
   /**
    * Safety profile (`compat`, `strict`, `agent`) applied during reads/audits.
    */
-  profile?: ArchiveOpenOptions['profile'] | undefined;
+  profile?: ArchiveProfile | undefined;
   /**
    * Extra strictness toggle forwarded to bytefold parsing.
    */
-  isStrict?: ArchiveOpenOptions['isStrict'] | undefined;
+  isStrict?: boolean | undefined;
   /**
    * Parser/resource limits enforced while opening or auditing archives.
    */
-  limits?: ArchiveOpenOptions['limits'] | undefined;
+  limits?: ArchiveLimits | undefined;
   /**
    * Abort signal for cancelling in-flight async operations.
    */
-  signal?: ArchiveOpenOptions['signal'] | undefined;
+  signal?: AbortSignal | undefined;
   /**
    * Password used for encrypted archives when supported by the runtime.
    */
-  password?: ArchiveOpenOptions['password'] | undefined;
+  password?: string | undefined;
   /**
    * Filename hint used for extension-based inference with non-path inputs.
    */
-  filename?: ArchiveOpenOptions['filename'] | undefined;
+  filename?: string | undefined;
 }
 
 /**
