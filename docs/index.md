@@ -1,23 +1,32 @@
-# Documentation
+# dir-archiver documentation
 
-Use this map to pick the right doc quickly.
+This documentation is organized around the jobs package consumers need to complete.
 
-## Tutorial
-- [Tutorial: bundle a plugin directory](tutorial/bundle-a-plugin.md)
-- [Tutorial: first archive flow](tutorial/first-archive-flow.md)
+## Start here
 
-## How-to
-- [Use CLI JSON output and exit codes](how-to/cli-json-and-exit-codes.md)
-- [Troubleshoot common failures](how-to/troubleshoot-common-failures.md)
-- [Extract untrusted archives safely](how-to/extract-untrusted.md)
-- [How-to index](how-to/index.md)
+| Page | Use it when |
+| --- | --- |
+| [Getting started](getting-started.md) | You want to create, inspect, and extract your first archive. |
+| [API guide](api.md) | You use `dir-archiver` from JavaScript or TypeScript. |
+| [CLI guide](cli.md) | You use `dir-archiver` from a shell, script, or CI job. |
+| [Safety](safety.md) | You extract archives that may come from users or external systems. |
+| [Formats](formats.md) | You need to choose or force an archive format. |
+| [Troubleshooting](troubleshooting.md) | You need to map failures to fixes. |
 
-## Reference
-- [CLI reference](reference/cli.md)
-- [Options reference](reference/options.md)
-- [Contract](reference/contract.md)
-- [Reference index](reference/index.md)
+## Recipes
 
-## Explanation
-- [Explanation index](explanation/index.md)
-- [Profile behavior and tradeoffs](explanation/profiles.md)
+| Recipe | Job |
+| --- | --- |
+| [Create a ZIP from a directory](recipes/create-zip-from-directory.md) | Build a distributable archive while excluding local files. |
+| [Inspect an archive before extracting](recipes/inspect-archive-before-extracting.md) | Detect, list, and audit before writing files. |
+| [Extract an untrusted archive](recipes/extract-untrusted-archive.md) | Apply strict profile checks and size limits. |
+| [Create a release artifact](recipes/create-release-artifact.md) | Produce a ZIP artifact and JSON summary for automation. |
+| [Normalize an archive](recipes/normalize-archive.md) | Rewrite supported archives into deterministic output. |
+
+## Contracts and project files
+
+- [Public behavior contract](../CONTRACT.md)
+- [Security policy](../SECURITY.md)
+- [Support](../SUPPORT.md)
+- [Contributing](../CONTRIBUTING.md)
+- [Changelog](../CHANGELOG.md)
