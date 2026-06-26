@@ -2,7 +2,9 @@
 
 ### Unreleased
 
-* No entries yet.
+* Rework README and docs around consumer tasks for install, API usage, CLI usage, safety, formats, and troubleshooting.
+* Consolidate fragmented tutorial/how-to/reference pages into a smaller job-based docs structure.
+* Move maintainer-only CI documentation out of the consumer docs tree.
 
 ### 3.0.2 (June 19, 2026)
 
