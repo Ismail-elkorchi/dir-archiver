@@ -14,11 +14,7 @@ Contributor note: inside this repository after `npm run build`, the same CLI is 
 
 ## Commands
 
-`dir-archiver` supports these commands:
-
-```txt
-open, detect, list, audit, extract, normalize, write
-```
+`dir-archiver` supports `open`, `detect`, `list`, `audit`, `extract`, `normalize`, and `write`.
 
 If you omit the command but pass `--source` and `--output`, the CLI resolves the operation as `write`.
 
