@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const cliArgsPath = path.join(repoRoot, 'src', 'cli-args.ts');
-const cliReferencePath = path.join(repoRoot, 'docs', 'reference', 'cli.md');
+const cliReferencePath = path.join(repoRoot, 'docs', 'cli.md');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -22,7 +22,7 @@ test('CLI reference documents all long flags from CLI schema', () => {
   assert.equal(
     missing.length,
     0,
-    `docs/reference/cli.md is missing CLI flags: ${missing.join(', ')}`,
+    `docs/cli.md is missing CLI flags: ${missing.join(', ')}`,
   );
 });
 
@@ -40,6 +40,6 @@ test('CLI reference documents all supported commands', () => {
   assert.equal(
     missing.length,
     0,
-    `docs/reference/cli.md is missing commands: ${missing.join(', ')}`,
+    `docs/cli.md is missing commands: ${missing.join(', ')}`,
   );
 });
