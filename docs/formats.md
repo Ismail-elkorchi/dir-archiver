@@ -24,14 +24,16 @@ Check the runtime table before choosing Brotli, Zstandard, BZip2, or XZ.
 
 ## Aliases and inference
 
-`tgz` and `tar.gz` describe the same gzip-compressed TAR family. They can both be passed explicitly, but destination extension inference canonicalizes both `.tgz` and `.tar.gz` to `tar.gz`:
+`tgz` and `tar.gz` describe the same gzip-compressed TAR family, but the identifier reported by an operation depends on how the format was selected.
+
+`write()` destination inference maps both `.tgz` and `.tar.gz` to `tar.gz`:
 
 ```js
 const result = await write("./project", "./project.tgz");
 console.log(result.format); // tar.gz
 ```
 
-An explicit request can retain the alias reported by the writer:
+An explicit writer request retains the requested alias:
 
 ```js
 const result = await write("./project", "./project.bundle", {
@@ -40,9 +42,27 @@ const result = await write("./project", "./project.bundle", {
 console.log(result.format); // tgz
 ```
 
+Read-side filename detection in bytefold `0.8.x` maps both `.tgz` and `.tar.gz` to `tgz`:
+
+```js
+const result = await detect("./project.tar.gz");
+console.log(result.format); // tgz
+```
+
+An explicit read format is preserved:
+
+```js
+const result = await detect("./project.tar.gz", {
+  format: "tar.gz",
+});
+console.log(result.format); // tar.gz
+```
+
+Treat `tgz` and `tar.gz` as equivalent aliases unless your application intentionally preserves the exact requested identifier.
+
 `write()` checks compound extensions before shorter ones:
 
-| Destination suffix | Inferred format |
+| Destination suffix | Inferred write format |
 | --- | --- |
 | `.zip` | `zip` |
 | `.tar` | `tar` |
@@ -83,8 +103,8 @@ Node.js and Bun currently share the same bytefold support matrix.
 | `tar.bz2` | supported | unsupported | supported | Read and normalize only. |
 | `zst` | supported | supported for a file source | unsupported | A directory request maps to `tar.zst`. |
 | `tar.zst` | supported | supported | supported | Requires active Zstandard capability. |
-| `br` | supported with a hint when bytes are ambiguous | supported for a file source | unsupported | A directory request maps to `tar.br`. |
-| `tar.br` | supported with a hint when bytes are ambiguous | supported | supported | Requires active Brotli capability. |
+| `br` | filename or explicit format hint required | supported for a file source | unsupported | A directory request maps to `tar.br`. |
+| `tar.br` | filename or explicit format hint required | supported | supported | Requires active Brotli capability. |
 | `xz` | supported | unsupported | unsupported | A directory request maps to `tar.xz`, which is also not writable. |
 | `tar.xz` | supported | unsupported | supported | Read and normalize only. |
 
@@ -138,7 +158,7 @@ The filename is not rewritten. In this example the bytes are `tar.gz` even thoug
 
 Local paths and URLs normally provide a filename hint. Bytes, streams, and blobs do not.
 
-Brotli signatures are not always enough to distinguish `br` from `tar.br`. Pass `filename` or `format` for non-path input:
+Brotli input requires a filename or explicit format hint because byte inspection does not reliably distinguish `br` from `tar.br`:
 
 ```js
 await list(bytes, {
