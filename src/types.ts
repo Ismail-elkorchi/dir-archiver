@@ -8,10 +8,13 @@ export type {
   ArchiveProfile,
 } from '@ismail-elkorchi/bytefold';
 
-/** Resource limit configuration accepted by `open`, `audit`, and extraction flows. */
+/**
+ * Resource-limit configuration forwarded to bytefold read, audit, extract,
+ * and normalize flows. Accepted fields are documented in `docs/api.md`.
+ */
 export type ArchiveLimits = Record<string, unknown>;
 
-/** Issue shape emitted for archive read/normalize/extract failures. */
+/** Issue shape emitted for archive read, normalize, and extract reports. */
 export type ArchiveIssue = Record<string, unknown>;
 
 /** Public detection report shape aligned with runtime diagnostics payloads. */
@@ -23,8 +26,9 @@ export type ArchiveNormalizeReport = Record<string, unknown>;
 /**
  * Accepted input shapes for archive read operations.
  *
- * String paths and `URL` objects are the most common inputs, but callers can
- * also supply raw bytes or web streams when the archive is already in memory.
+ * String paths and `URL` objects can identify local files or remote HTTP(S)
+ * inputs through the active runtime adapter. Callers can also supply raw bytes,
+ * web streams, or blobs when the archive is already in memory.
  */
 export type DirArchiverInput =
   | string
@@ -37,32 +41,37 @@ export type DirArchiverInput =
 /**
  * Common options forwarded to bytefold archive-open operations.
  *
- * Used by `open()`, `detect()`, `list()`, and `audit()`.
+ * Used directly by `open()`, `detect()`, `list()`, and `audit()`, and inherited
+ * by extraction and normalization options.
  */
 export interface OpenOptions
 {
   /**
-   * Explicit format override when callers already know archive type.
+   * Explicit format override when callers already know the archive type.
+   * Use `auto` or omit the field to detect from filename hints and bytes.
    */
   format?: ArchiveFormat | 'auto' | undefined;
   /**
-   * Safety profile (`compat`, `strict`, `agent`) applied during reads/audits.
+   * Safety profile (`compat`, `strict`, `agent`) applied during reads and
+   * audits. Current bytefold readers default to `strict` when omitted.
    */
   profile?: ArchiveProfile | undefined;
   /**
-   * Extra strictness toggle forwarded to bytefold parsing.
+   * Advanced parser-strictness override forwarded to bytefold.
+   * This does not replace extraction profile enforcement.
    */
   isStrict?: boolean | undefined;
   /**
-   * Parser/resource limits enforced while opening or auditing archives.
+   * Parser, decompression, entry, and audit resource limits forwarded to
+   * bytefold. These differ from extraction materialization byte limits.
    */
   limits?: ArchiveLimits | undefined;
   /**
-   * Abort signal for cancelling in-flight async operations.
+   * Abort signal for cancelling supported in-flight async operations.
    */
   signal?: AbortSignal | undefined;
   /**
-   * Password used for encrypted archives when supported by the runtime.
+   * Password used for encrypted ZIP members when supported by the runtime.
    */
   password?: string | undefined;
   /**
@@ -89,7 +98,7 @@ export interface ListEntry {
   format: ArchiveFormat;
   /** Entry path inside the archive, normalized to forward slashes. */
   name: string;
-  /** Entry size encoded as a string for JSON-safe transport. */
+  /** Entry size encoded as a decimal string for JSON-safe transport. */
   size: string;
   /** Whether the entry materializes as a directory. */
   isDirectory: boolean;
@@ -114,8 +123,8 @@ export interface ListResult {
 /**
  * Options for `audit()`.
  *
- * Alias of `OpenOptions` for stable API typing; CLI-only flags (for example
- * `--json`) are not part of this programmatic surface.
+ * Alias of `OpenOptions` for stable API typing; CLI-only flags such as
+ * `--json` are not part of this programmatic surface.
  */
 export type AuditOptions = OpenOptions;
 
@@ -123,7 +132,7 @@ export type AuditOptions = OpenOptions;
  * Normalize operation options.
  */
 export interface NormalizeOptions extends OpenOptions {
-  /** Request deterministic normalization when the runtime supports the knob. */
+  /** Request deterministic normalization; defaults to `true`. */
   deterministic?: boolean | undefined;
 }
 
@@ -133,32 +142,33 @@ export interface NormalizeOptions extends OpenOptions {
 export interface NormalizeResult {
   /** Source archive format that was normalized. */
   format: ArchiveFormat;
-  /** Detailed normalization report from bytefold. */
+  /** Versioned normalization report produced by bytefold. */
   report: ArchiveNormalizeReport;
 }
 
 /**
- * Extraction options with explicit safety limits.
+ * Extraction options with explicit safety and materialization limits.
  *
  * `extract()` defaults to `profile: 'strict'` when no profile is supplied.
  */
 export interface ExtractOptions extends OpenOptions {
   /**
-   * If `true`, symbolic-link entries are materialized on disk; otherwise they
-   * are skipped and counted in `ExtractResult.skippedEntries`.
+   * If `true`, permitted symbolic-link entries are materialized on disk;
+   * otherwise they are skipped and counted in `skippedEntries`.
+   * Agent profile can reject symlink presence before materialization.
    */
   allowSymlinks?: boolean | undefined;
   /**
-   * Reserved for forward compatibility. Hard-link entries are currently
-   * rejected with `DIRARCHIVER_UNSUPPORTED_ENTRY` regardless of this flag.
+   * Reserved for forward compatibility. Hard-link entries are rejected with
+   * `DIRARCHIVER_UNSUPPORTED_ENTRY` regardless of this flag in v3.
    */
   allowHardlinks?: boolean | undefined;
   /**
-   * Maximum bytes allowed for any single extracted file entry.
+   * Maximum bytes buffered and written for any one regular file entry.
    */
   maxEntryBytes?: number | undefined;
   /**
-   * Maximum cumulative bytes allowed across all extracted file entries.
+   * Maximum cumulative regular-file bytes written by one extraction run.
    */
   maxTotalExtractedBytes?: number | undefined;
 }
@@ -171,13 +181,13 @@ export interface ExtractResult {
   format: ArchiveFormat;
   /** Absolute destination directory path used for extraction. */
   destination: string;
-  /** Number of file entries written to disk. */
+  /** Number of regular file entries written to disk. */
   extractedFiles: number;
-  /** Number of directory entries created on disk. */
+  /** Number of directory entries created during archive iteration. */
   extractedDirectories: number;
-  /** Number of entries skipped due to policy, such as disallowed symlinks. */
+  /** Number of entries skipped by policy, such as disallowed symlinks. */
   skippedEntries: number;
-  /** Audit issues collected before or during extraction. */
+  /** Audit issues collected by the extraction flow. */
   issues: ArchiveIssue[];
 }
 
@@ -186,29 +196,34 @@ export interface ExtractResult {
  */
 export interface WriteOptions {
   /**
-   * Requested output format. If omitted, inferred from destination extension
-   * and falls back to `zip` when inference is not possible.
+   * Requested output format. If omitted, inferred from the destination
+   * extension and falling back to `zip` when inference is not possible.
    */
   format?: ArchiveFormat | undefined;
   /**
-   * Includes the source directory name as a root folder in the archive when
+   * Include the source directory name as the archive root prefix when the
    * source is a directory.
    */
   includeBaseDirectory?: boolean | undefined;
   /**
-   * Follows symbolic links while walking directory sources for `write()`.
+   * Follow symbolic-link targets while walking directory sources. Targets can
+   * resolve outside the source root, so use this only for trusted layouts.
    */
   followSymlinks?: boolean | undefined;
   /**
-   * Glob-like exclusion patterns evaluated relative to the source root.
+   * Exact exclusions evaluated while walking the source root. A value without
+   * a path separator matches that basename anywhere; a value with a separator
+   * matches one source-relative path. Wildcard syntax is not expanded.
    */
   exclude?: string[] | undefined;
   /**
-   * Writer profile (`compat`, `strict`, `agent`) forwarded to bytefold.
+   * Reserved for forward compatibility. Current `write()` behavior does not
+   * forward a writer profile to bytefold.
    */
   profile?: ArchiveProfile | undefined;
   /**
-   * Optional writer limits passed through to bytefold operations.
+   * Reserved for forward compatibility. Current `write()` behavior does not
+   * forward writer limits to bytefold.
    */
   limits?: ArchiveLimits | undefined;
 }
@@ -223,9 +238,9 @@ export interface WriteResult {
   source: string;
   /** Absolute destination archive path that was written. */
   destination: string;
-  /** Number of archive entries written to the output archive. */
+  /** Number of regular file entries written to the output archive. */
   entryCount: number;
-  /** Whether a directory source was wrapped in a tar-based single-file codec. */
+  /** Whether a directory source was mapped to a TAR-based codec format. */
   wrappedDirectoryCodec: boolean;
 }
 
