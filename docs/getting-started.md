@@ -134,13 +134,21 @@ Extraction is not transactional. It creates the destination, replaces matching f
 
 ## Deno
 
-Install from JSR and change the package import:
+Add the JSR package to the project import map:
 
-```ts
-import { audit, extract, list, write } from "jsr:@ismail-elkorchi/dir-archiver";
+```sh
+deno add jsr:@ismail-elkorchi/dir-archiver
 ```
 
-The `node:` filesystem imports in the example are supported by current Deno. Run with the permissions used by the local-file flow:
+Then change the package import in the example:
+
+```ts
+import { audit, extract, list, write } from "@ismail-elkorchi/dir-archiver";
+```
+
+A direct `jsr:@ismail-elkorchi/dir-archiver` import is also valid without running `deno add`.
+
+The `node:` filesystem imports in the example are supported by current Deno. Save the file as `archive-demo.ts` and run it with the permissions used by the local-file flow:
 
 ```sh
 deno run --allow-read --allow-write --allow-env --allow-sys archive-demo.ts
