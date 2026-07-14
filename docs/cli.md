@@ -41,7 +41,7 @@ When no command token is present, supplying both `--source` and `--output` selec
 | Flag | Alias | Commands | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `--source` | `--src` | `write` | required | Source file or directory. |
-| `--input` | `-i` | every read command | required | Archive path or URL. |
+| `--input` | `-i` | every read command | required | Archive path or HTTP/HTTPS URL. |
 | `--output` | `--dest`, `-o` | `write`, `extract`, `normalize` | required | Destination archive or directory. |
 | `--format` | none | all commands | auto/inferred | Force a public format identifier. |
 | `--profile` | none | read, audit, extract, normalize | `strict` | Select `compat`, `strict`, or `agent`. |
@@ -80,10 +80,13 @@ Important behavior:
 
 - `--exclude` is repeatable and does not expand glob syntax.
 - A basename exclusion matches anywhere in the source tree; a path exclusion is exact and source-relative.
-- The destination is replaced when it exists.
+- The destination is opened and an existing file is replaced before every source file has been added.
+- A failure can leave a partial output and can destroy the previous archive at that destination.
 - Keep the destination outside the source tree.
 - Empty directories and source filesystem metadata are not preserved.
 - `--follow-symlinks` can include content outside the source root and should be used only with trusted source layouts.
+
+For publication workflows, write to a temporary sibling with an explicit `--format`, then rename it only after the command succeeds. See [Troubleshooting](troubleshooting.md#a-write-replaced-the-previous-destination-before-failing).
 
 ## open
 
@@ -125,6 +128,8 @@ For ambiguous bytes or a misleading filename, force the format:
 ```sh
 npx dir-archiver detect --input ./artifact.bin --format tar.br --json
 ```
+
+For gzip-compressed TAR, read-side filename inference in bytefold `0.8.x` reports `tgz` for both `.tgz` and `.tar.gz`. `write` destination inference reports `tar.gz` for those suffixes. They are equivalent aliases; use `--format` when the exact identifier matters.
 
 ## list
 
@@ -198,14 +203,13 @@ if (!report.ok) {
 }
 ```
 
-Then run:
+Then run the checker only after the audit command succeeds operationally:
 
 ```sh
-npx dir-archiver audit --input ./incoming.zip --profile agent --json > audit.json
-node check-audit.mjs audit.json
+npx dir-archiver audit --input ./incoming.zip --profile agent --json > audit.json && node check-audit.mjs audit.json
 ```
 
-The first command can still exit `1` for an operational failure such as an unreadable input or unsupported capability. Configure the CI shell to stop or branch on that exit before running the report checker.
+The audit command can exit `1` for an operational failure such as an unreadable input or unsupported capability. The `&&` prevents the checker from parsing an empty or incomplete report in that case. Use the equivalent conditional mechanism in shells that do not support this syntax.
 
 ## extract
 
