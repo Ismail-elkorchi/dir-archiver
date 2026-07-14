@@ -1,58 +1,81 @@
-# Maintainer: create a CI release artifact
+# Create a CI release artifact
 
-This page is for repository maintainers and release automation. Consumer-facing release artifact guidance lives in [docs/recipes/create-release-artifact.md](../docs/recipes/create-release-artifact.md).
+This repository-maintainer runbook creates a ZIP from build output and verifies its inventory before publication.
 
-## Goal
+## Prepare the repository
 
-Produce a release ZIP in CI and emit a machine-readable JSON summary.
+```sh
+npm ci
+npm run build
+```
 
-## Prerequisites
-
-- Node.js `>=24` for repository scripts.
-- Dependencies installed with `npm ci`.
-- Package built with `npm run build` when using repository-local examples.
-
-## Repository-local example
+The checked example uses temporary local files and removes them after completion:
 
 ```sh
 node examples/ci-release-artifact.mjs
 ```
 
-Expected output shape:
+Expected fields include:
 
 ```json
 {
   "ok": true,
-  "artifact": "/tmp/.../release-artifact.zip",
+  "artifact": "/temporary/path/release-artifact.zip",
   "format": "zip",
   "entryCount": 2,
   "wrappedDirectoryCodec": false
 }
 ```
 
-## Equivalent CLI flow
+The temporary artifact path no longer exists after the example exits; the example verifies behavior rather than producing a publishable file.
+
+## Create a real artifact
+
+Keep the destination outside `./dist` so the output cannot be discovered as a source file.
 
 ```sh
-dir-archiver write \
-  --source ./dist \
-  --output ./release.zip \
-  --include-base-directory \
-  --json
-
-dir-archiver detect \
-  --input ./release.zip \
-  --json
+mkdir -p ./artifacts
+node dist/cli.js write --source ./dist --output ./artifacts/release.zip --format zip --include-base-directory --json > ./artifacts/release-summary.json
 ```
+
+`includeBaseDirectory` stores entries under `dist/`. Omit it when release consumers expect files at the archive root.
+
+## Verify the inventory
+
+```sh
+node dist/cli.js list --input ./artifacts/release.zip --json > ./artifacts/release-entries.json
+```
+
+Review or gate on the entry names before publication. `write()` includes regular files, skips symlinks by default, and does not preserve empty directories or source filesystem metadata.
+
+## Determinism boundary
+
+Directory traversal and emitted archive paths are deterministic and lexicographically ordered. That does not by itself promise byte-identical output across every writer version, codec implementation, or runtime.
+
+When a supported format needs normalized output, normalize to a temporary file and rename after success:
+
+```sh
+node dist/cli.js normalize --input ./artifacts/release.zip --output ./artifacts/release.normalized.zip.tmp --profile strict --json > ./artifacts/normalize-summary.json
+mv ./artifacts/release.normalized.zip.tmp ./artifacts/release.normalized.zip
+```
+
+ZIP supports normalization in the current runtime matrix. The `mv` command assumes a POSIX runner and a final path that does not already exist; adapt publication semantics to the CI platform.
 
 ## Common mistakes
 
-- Omitting `--json`, which forces CI jobs to parse human-readable output.
-- Letting the destination extension choose an unintended format.
-- Skipping `--include-base-directory`, which makes extracted files land directly in the output root.
-- Not listing the archive before publishing when the release pipeline needs a file manifest.
+- Writing the archive inside the source directory.
+- Assuming `entryCount` includes empty directories.
+- Assuming source modes and timestamps are preserved.
+- Parsing human console output instead of using `--json`.
+- Merging stdout and stderr before JSON parsing.
+- Publishing without checking the archive inventory.
+- Calling a deterministic traversal result byte-identical without normalization and a pinned toolchain.
+- Normalizing directly over the source archive.
 
-## Related docs
+## Related documentation
 
-- [Create a release artifact](../docs/recipes/create-release-artifact.md)
-- [CLI guide](../docs/cli.md)
+- [API: write](../docs/api.md#write)
+- [CLI: write](../docs/cli.md#write)
+- [Formats](../docs/formats.md)
+- [Safety](../docs/safety.md)
 - [Public contract](../CONTRACT.md)
