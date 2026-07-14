@@ -2,9 +2,12 @@
 
 ### Unreleased
 
-* Rework README and docs around consumer tasks for install, API usage, CLI usage, safety, formats, and troubleshooting.
-* Consolidate fragmented tutorial/how-to/reference pages into a smaller job-based docs structure.
-* Move maintainer-only CI documentation out of the consumer docs tree.
+* Rebuild the consumer documentation around seven canonical pages for onboarding, API, CLI, safety, formats, and troubleshooting.
+* Correct CLI audit-gate, exit-stream, runtime-format, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
+* Replace Unix-only onboarding commands with a self-contained cross-platform example for Node.js, Deno, and Bun consumers.
+* Remove the duplicated recipes layer and keep maintainer-only CI runbooks outside the published consumer docs tree.
+* Align exported option and error JSDoc with current v3 behavior.
+* Add automated checks for local Markdown links, heading anchors, and the canonical docs structure.
 
 ### 3.0.2 (June 19, 2026)
 
