@@ -1,51 +1,96 @@
-# Maintainer: use dir-archiver in CI pipelines
+# Use dir-archiver in CI pipelines
 
-This page is for repository maintainers and release automation. Consumer-facing CLI docs live in [docs/cli.md](../docs/cli.md).
+This repository-maintainer runbook uses the locally built CLI. Consumer automation guidance lives in [docs/cli.md](../docs/cli.md).
 
-## Goal
-
-Normalize incoming archives and gate releases with deterministic audit results.
-
-## Prerequisites
-
-- `dir-archiver` is available in the CI job.
-- The job has an input archive path from the build pipeline.
-- The job captures stdout and stderr separately when using `--json`.
-
-## Normalize
+## Prepare the repository CLI
 
 ```sh
-dir-archiver normalize \
-  --input ./incoming.zip \
-  --output ./normalized.zip \
-  --profile strict \
-  --json
+npm ci
+npm run build
+```
+
+Invoke the local executable with Node.js:
+
+```sh
+node dist/cli.js detect --input ./incoming.zip --json
 ```
 
 ## Audit gate
 
+`audit` exits `0` when it successfully returns a report, including a report with `ok: false`. Persist the report and inspect it explicitly.
+
 ```sh
-dir-archiver audit \
-  --input ./incoming.zip \
-  --profile agent \
-  --json
+node dist/cli.js audit --input ./incoming.zip --profile agent --json > audit.json
 ```
 
-## Expected behavior
+Create or reuse a report checker:
 
-- Normalize emits a JSON report with deterministic summary fields when the input format supports normalization.
-- Audit exits with code `0` when the archive passes the requested profile checks.
-- Audit exits with code `1` when an archive-policy failure occurs.
-- Usage mistakes exit with code `2`.
+```js
+import { readFile } from "node:fs/promises";
+
+const report = JSON.parse(await readFile(process.argv[2], "utf8"));
+
+if (!report.ok) {
+  console.error(JSON.stringify(report.issues, null, 2));
+  process.exitCode = 1;
+}
+```
+
+```sh
+node check-audit.mjs audit.json
+```
+
+The audit command itself can still exit `1` for an operational failure. CI must stop or branch before running the checker when that happens.
+
+## Normalize through a temporary output
+
+Normalization is not conversion and is not transactional. Write to a temporary sibling, then rename only after success.
+
+```sh
+node dist/cli.js normalize --input ./incoming.zip --output ./normalized.zip.tmp --profile strict --json > normalize.json
+mv ./normalized.zip.tmp ./normalized.zip
+```
+
+The `mv` command is shown for POSIX runners. Use the runner's native atomic-replacement strategy when the final path already exists or when running on another platform.
+
+Check [docs/formats.md](../docs/formats.md) before normalizing a non-ZIP format.
+
+## Extract through a staging directory
+
+Use a new directory under a trusted CI workspace and remove it on every failure.
+
+```sh
+staging="$(mktemp -d ./archive-staging.XXXXXX)"
+trap 'rm -rf "$staging"' EXIT
+
+node dist/cli.js extract --input ./incoming.zip --output "$staging" --profile strict --max-entry-bytes 67108864 --max-total-extracted-bytes 536870912 --json > extract.json
+
+# Publish or rename $staging only after the command succeeds.
+```
+
+This shell pattern is intended for POSIX CI runners. Apply equivalent lifecycle handling on other runners.
+
+## Stream and payload rules
+
+- Success JSON is written to stdout with `--json`.
+- Usage JSON is written to stdout and exits `2`.
+- Known package operational errors are JSON on stderr and exit `1`.
+- Native or dependency failures can be text on stderr and exit `1`.
+- Keep stdout and stderr separate.
+- Persist report `schemaVersion` with stored audit or normalize output.
 
 ## Common mistakes
 
-- Treating exit code `2` as an archive-safety failure instead of a command usage error.
-- Extracting or normalizing untrusted input before audit.
-- Dropping JSON output before later stages can inspect it.
+- Treating audit exit `0` as proof that `report.ok` is true.
+- Parsing every exit-`1` stderr value as JSON without checking its shape.
+- Normalizing directly over the input path.
+- Publishing a destination after partial extraction.
+- Running extraction in a shared or pre-populated directory.
+- Selecting a codec without checking the runtime support matrix.
 
-## Related docs
+## Related documentation
 
 - [CLI guide](../docs/cli.md)
 - [Safety](../docs/safety.md)
+- [Formats](../docs/formats.md)
 - [Public contract](../CONTRACT.md)
