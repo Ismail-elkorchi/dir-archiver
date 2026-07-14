@@ -1,32 +1,40 @@
-# dir-archiver documentation
+# Documentation
 
-This documentation is organized around the jobs package consumers need to complete.
+The documentation has one canonical page for each kind of information. Start with the task you need to complete rather than reading every page in order.
 
-## Start here
+## Learn the library
 
-| Page | Use it when |
+| Page | Read it for |
 | --- | --- |
-| [Getting started](getting-started.md) | You want to create, inspect, and extract your first archive. |
-| [API guide](api.md) | You use `dir-archiver` from JavaScript or TypeScript. |
-| [CLI guide](cli.md) | You use `dir-archiver` from a shell, script, or CI job. |
-| [Safety](safety.md) | You extract archives that may come from users or external systems. |
-| [Formats](formats.md) | You need to choose or force an archive format. |
-| [Troubleshooting](troubleshooting.md) | You need to map failures to fixes. |
+| [Getting started](getting-started.md) | A self-contained create, inspect, audit, and extract flow. |
+| [API guide](api.md) | Inputs, signatures, options, results, errors, and operation caveats. |
+| [CLI guide](cli.md) | Installation, commands, flags, output streams, exit codes, and CI gating. |
+| [Safety](safety.md) | Profiles, untrusted input, resource limits, links, overwrite behavior, and staging. |
+| [Formats](formats.md) | Format inference, aliases, write support, normalization, and runtime differences. |
+| [Troubleshooting](troubleshooting.md) | Symptoms, causes, diagnostics, and first fixes. |
 
-## Recipes
+## Find a task
 
-| Recipe | Job |
+| Task | Page and section |
 | --- | --- |
-| [Create a ZIP from a directory](recipes/create-zip-from-directory.md) | Build a distributable archive while excluding local files. |
-| [Inspect an archive before extracting](recipes/inspect-archive-before-extracting.md) | Detect, list, and audit before writing files. |
-| [Extract an untrusted archive](recipes/extract-untrusted-archive.md) | Apply strict profile checks and size limits. |
-| [Create a release artifact](recipes/create-release-artifact.md) | Produce a ZIP artifact and JSON summary for automation. |
-| [Normalize an archive](recipes/normalize-archive.md) | Rewrite supported archives into deterministic output. |
+| Create an archive from a directory | [API: write](api.md#write) |
+| Keep a stable root folder in the archive | [API: includeBaseDirectory](api.md#include-the-source-directory) |
+| Exclude local files | [API: exclude](api.md#exclude-source-paths) |
+| Inspect an archive without extracting | [API: detect and list](api.md#detect) |
+| Decide whether an archive is acceptable | [API: audit](api.md#audit) |
+| Extract an external archive | [Safety: recommended extraction flow](safety.md#recommended-extraction-flow) |
+| Use the CLI in automation | [CLI: automation contract](cli.md#automation-contract) |
+| Fail a CI job when audit reports issues | [CLI: audit as a gate](cli.md#use-audit-as-a-gate) |
+| Choose a format | [Formats](formats.md) |
+| Normalize output | [API: normalize](api.md#normalize) |
+| Handle failures | [Troubleshooting](troubleshooting.md) |
 
-## Contracts and project files
+## Contracts and project policies
 
 - [Public behavior contract](../CONTRACT.md)
 - [Security policy](../SECURITY.md)
 - [Support](../SUPPORT.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Changelog](../CHANGELOG.md)
+
+Maintainer-only CI notes live under [`maintenance/`](../maintenance/README.md) and are not part of the published consumer documentation.
