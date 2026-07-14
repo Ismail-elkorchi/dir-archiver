@@ -37,4 +37,6 @@ The documentation has one canonical page for each kind of information. Start wit
 - [Contributing](../CONTRIBUTING.md)
 - [Changelog](../CHANGELOG.md)
 
-Maintainer-only CI notes live under [`maintenance/`](../maintenance/README.md) and are not part of the published consumer documentation.
+Maintainer-only CI notes live in the source repository's `maintenance/` directory. They are intentionally excluded from the published npm and JSR documentation.
+
+Older documentation paths are retained as short moved-page notices so links from previous releases continue to lead to the canonical pages. New material belongs only on the pages listed above.
