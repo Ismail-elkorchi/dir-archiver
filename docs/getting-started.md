@@ -1,40 +1,86 @@
 # Getting started
 
-This guide creates a tiny folder, writes it to a ZIP archive, inspects the archive, and extracts it with safety limits.
+This guide runs one complete archive flow from a fresh package installation. It creates its own temporary files, works across operating systems, and removes the temporary workspace when it finishes.
 
-The examples use Node.js and the npm package name. The same API is available in supported Deno and Bun environments after installing the package for that runtime.
+## Before you begin
 
-## Install
+For Node.js, use version `24` or newer and install the npm package:
 
 ```sh
 npm install dir-archiver
 ```
 
-## Create a small input directory
+The package is ESM-only. Save the example as `archive-demo.mjs` or use a project whose `package.json` contains `"type": "module"`.
 
-```sh
-mkdir -p demo-project/src
-printf 'console.log("hello");\n' > demo-project/src/index.js
-printf '{"name":"demo-project"}\n' > demo-project/package.json
-```
-
-## Write the archive
+## Run a complete example
 
 Create `archive-demo.mjs`:
 
-```ts
-import { write } from "dir-archiver";
+```js
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { audit, extract, list, write } from "dir-archiver";
 
-const written = await write("./demo-project", "./demo-project.zip", {
-  // Keep every archived path under demo-project/.
-  // Without this, src/index.js would be stored at the archive root.
-  includeBaseDirectory: true,
+const workspace = await mkdtemp(join(tmpdir(), "dir-archiver-demo-"));
 
-  // Exclusions are exact basenames or paths relative to the source root.
-  exclude: ["node_modules", ".git"],
-});
+try {
+  const source = join(workspace, "project");
+  const archive = join(workspace, "project.zip");
+  const destination = join(workspace, "extracted");
 
-console.log(written);
+  await mkdir(join(source, "src"), { recursive: true });
+  await writeFile(join(source, "src", "index.js"), "console.log('hello');\n");
+  await writeFile(join(source, "package.json"), '{"name":"demo-project"}\n');
+
+  // Write the archive outside the source tree. includeBaseDirectory keeps
+  // every entry under project/ inside the ZIP.
+  const created = await write(source, archive, {
+    includeBaseDirectory: true,
+    exclude: ["node_modules", ".git"],
+  });
+
+  console.log("created", {
+    format: created.format,
+    entryCount: created.entryCount,
+  });
+
+  // list() reads entry metadata without extracting files.
+  const inventory = await list(archive);
+  console.log("entries", inventory.entries.map((entry) => entry.name));
+
+  // audit() returns a report. Applications must inspect report.ok.
+  const report = await audit(archive, { profile: "agent" });
+  console.log("audit", {
+    ok: report.ok,
+    issues: report.issues.length,
+  });
+
+  if (!report.ok) {
+    throw new Error(`Archive audit failed: ${JSON.stringify(report.issues)}`);
+  }
+
+  // Strict extraction audits again before writing entries. The explicit byte
+  // limits bound both one file and the total bytes written by this operation.
+  const result = await extract(archive, destination, {
+    profile: "strict",
+    maxEntryBytes: 64 * 1024 * 1024,
+    maxTotalExtractedBytes: 512 * 1024 * 1024,
+  });
+
+  const extractedText = await readFile(
+    join(destination, "project", "src", "index.js"),
+    "utf8",
+  );
+
+  console.log("extracted", {
+    files: result.extractedFiles,
+    skipped: result.skippedEntries,
+    text: extractedText.trim(),
+  });
+} finally {
+  await rm(workspace, { recursive: true, force: true });
+}
 ```
 
 Run it:
@@ -43,116 +89,78 @@ Run it:
 node archive-demo.mjs
 ```
 
-Expected result shape:
+The values include temporary absolute paths internally, but the meaningful output should resemble:
 
-```json
-{
-  "format": "zip",
-  "source": "/absolute/path/demo-project",
-  "destination": "/absolute/path/demo-project.zip",
-  "entryCount": 2,
-  "wrappedDirectoryCodec": false
-}
+```txt
+created { format: 'zip', entryCount: 2 }
+entries [ 'project/package.json', 'project/src/index.js' ]
+audit { ok: true, issues: 0 }
+extracted { files: 2, skipped: 0, text: "console.log('hello');" }
 ```
 
-## Inspect the archive
+Archive entry order is deterministic and lexicographic. The exact console formatting is owned by the runtime and is not an API contract.
 
-Create `inspect-demo.mjs`:
+## Understand the choices
+
+### Keep the destination outside the source
+
+`write()` opens the output and then walks the source directory. If the output is inside the source, the newly created archive can be discovered during that walk. Place build artifacts in a sibling directory or explicitly exclude the destination.
+
+### Include the source directory
+
+With `includeBaseDirectory: true`, the example stores:
+
+```txt
+project/package.json
+project/src/index.js
+```
+
+With the default `false`, it stores:
+
+```txt
+package.json
+src/index.js
+```
+
+Choose the layout based on how consumers should see files after extraction.
+
+### Inspect before extracting
+
+`list()` answers “what paths are present?” `audit()` answers “what issues does the selected profile report?” Strict `extract()` performs its own audit, so the separate call is for applications that need a report before making a decision.
+
+### Use a new extraction directory
+
+Extraction is not transactional. It creates the destination, replaces matching files, and can leave earlier entries behind if a later entry fails. For external archives, extract into a new staging directory under a trusted parent, then publish that directory only after success. See [Safety](safety.md#recommended-extraction-flow).
+
+## Deno
+
+Install from JSR and change the package import:
 
 ```ts
-import { detect, list, audit } from "dir-archiver";
-
-const archive = "./demo-project.zip";
-
-const detected = await detect(archive);
-console.log(`format: ${detected.format}`);
-
-const listed = await list(archive);
-for (const entry of listed.entries) {
-  console.log(entry.name);
-}
-
-const report = await audit(archive, {
-  // agent is useful in automation because it asks for the strict safety posture
-  // plus additional assertions exposed by the archive reader.
-  profile: "agent",
-});
-
-console.log(`audit ok: ${report.ok}`);
+import { audit, extract, list, write } from "jsr:@ismail-elkorchi/dir-archiver";
 ```
 
-Run it:
+The `node:` filesystem imports in the example are supported by current Deno. Run with the permissions used by the local-file flow:
 
 ```sh
-node inspect-demo.mjs
+deno run --allow-read --allow-write --allow-env --allow-sys archive-demo.ts
 ```
 
-You should see archive paths under `demo-project/`.
+Add `--allow-net` only when reading an HTTP or HTTPS archive URL. Deno format capabilities differ for Zstandard and Brotli; see [Formats](formats.md#deno).
 
-## Extract the archive
+## Bun
 
-Create `extract-demo.mjs`:
-
-```ts
-import { DirArchiverError, extract } from "dir-archiver";
-
-try {
-  const result = await extract("./demo-project.zip", "./demo-output", {
-    // extract() already defaults to strict; keeping it visible makes the
-    // extraction policy easy to review.
-    profile: "strict",
-
-    // Set limits for archives that may come from outside your application.
-    maxEntryBytes: 64 * 1024 * 1024,
-    maxTotalExtractedBytes: 512 * 1024 * 1024,
-  });
-
-  console.log(result);
-} catch (error) {
-  if (error instanceof DirArchiverError) {
-    console.error(`dir-archiver failed: ${error.code}`);
-    process.exitCode = 1;
-  } else {
-    throw error;
-  }
-}
-```
-
-Run it:
+Install the npm package, keep the `dir-archiver` import, and run:
 
 ```sh
-node extract-demo.mjs
-find demo-output -maxdepth 3 -type f | sort
+bun add dir-archiver
+bun run archive-demo.mjs
 ```
 
-You should see files under `demo-output/demo-project/`.
+## Continue
 
-## CLI equivalent
-
-```sh
-npx dir-archiver write \
-  --source ./demo-project \
-  --output ./demo-project.zip \
-  --include-base-directory \
-  --exclude node_modules \
-  --exclude .git \
-  --json
-
-npx dir-archiver list \
-  --input ./demo-project.zip \
-  --json
-
-npx dir-archiver extract \
-  --input ./demo-project.zip \
-  --output ./demo-output \
-  --profile strict \
-  --max-total-extracted-bytes 536870912 \
-  --json
-```
-
-## Next steps
-
-- Read the [API guide](api.md) for every exported function.
-- Read the [CLI guide](cli.md) for commands, flags, JSON output, and exit codes.
-- Read [Safety](safety.md) before extracting archives from users or external systems.
-- Use the [Troubleshooting](troubleshooting.md) page when a command or API call fails.
+- [API guide](api.md)
+- [CLI guide](cli.md)
+- [Safety](safety.md)
+- [Formats](formats.md)
+- [Troubleshooting](troubleshooting.md)
