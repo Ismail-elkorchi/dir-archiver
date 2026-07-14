@@ -1,86 +1,97 @@
 # CLI guide
 
-Use the CLI when you want archive operations in shell scripts, package scripts, or CI jobs.
+The `dir-archiver` CLI is the Node.js executable shipped by the npm package. It requires Node.js `>=24`.
 
-## Run the binary
+The JSR package provides the cross-runtime API; it does not publish the CLI executable.
 
-From a project that installed `dir-archiver`:
+## Install and run
+
+Install in the project that owns the automation:
+
+```sh
+npm install --save-dev dir-archiver
+```
+
+Run through the local package binary:
 
 ```sh
 npx dir-archiver
 ```
 
-Contributor note: inside this repository after `npm run build`, the same CLI is available at `node dist/cli.js`.
+The examples below use one-line commands so they can be adapted to different shells without relying on continuation syntax.
 
 ## Commands
 
-`dir-archiver` supports `open`, `detect`, `list`, `audit`, `extract`, `normalize`, and `write`.
+`dir-archiver` supports `write`, `open`, `detect`, `list`, `audit`, `extract`, and `normalize`.
 
-If you omit the command but pass `--source` and `--output`, the CLI resolves the operation as `write`.
+| Command | Purpose |
+| --- | --- |
+| `write` | Create an archive from a local file or directory. |
+| `open` | Open an archive with the requested profile and print format/detection metadata. |
+| `detect` | Resolve an archive format. |
+| `list` | Print JSON-safe entry summaries. |
+| `audit` | Print an issue report without extracting. |
+| `extract` | Materialize entries in a local directory. |
+| `normalize` | Rewrite a supported archive deterministically in the same format. |
 
-## Common flags
+When no command token is present, supplying both `--source` and `--output` selects `write`. Explicit commands are easier to review and are used throughout this guide.
 
-| Flag | Alias | Used by | Default | Notes |
+## Flags
+
+| Flag | Alias | Commands | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `--source` | `--src` | `write` | required | Source file or directory. |
-| `--input` | `-i` | `open`, `detect`, `list`, `audit`, `extract`, `normalize` | required | Archive to read. |
-| `--output` | `--dest`, `-o` | `write`, `extract`, `normalize` | required | Archive or directory to write. |
-| `--format` | none | most commands | auto/inferred | One of the supported format names. |
-| `--profile` | none | read, audit, extract, normalize | `strict` | One of `compat`, `strict`, `agent`. |
-| `--json` | none | all commands | `false` | Emit machine-readable JSON. |
-| `--include-base-directory` | `--includebasedir` | `write` | `false` | Store entries under the source directory name. |
-| `--follow-symlinks` | `--followsymlinks` | `write` | `false` | Follow symlink targets while reading source directories. |
-| `--exclude` | none | `write` | `[]` | Repeatable exact basename or relative-path exclusion. |
-| `--allow-symlinks` | none | `extract` | `false` | Materialize symlink entries. |
-| `--allow-hardlinks` | none | `extract` | `false` | Reserved; hard links are rejected in current v3 behavior. |
-| `--max-entry-bytes` | none | `extract` | unset | Maximum bytes for one extracted file. |
-| `--max-total-extracted-bytes` | none | `extract` | unset | Maximum total bytes written by one extraction run. |
+| `--input` | `-i` | every read command | required | Archive path or URL. |
+| `--output` | `--dest`, `-o` | `write`, `extract`, `normalize` | required | Destination archive or directory. |
+| `--format` | none | all commands | auto/inferred | Force a public format identifier. |
+| `--profile` | none | read, audit, extract, normalize | `strict` | Select `compat`, `strict`, or `agent`. |
+| `--json` | none | all commands | `false` | Serialize the command payload as JSON. |
+| `--include-base-directory` | `--includebasedir` | `write` | `false` | Prefix entries with the source directory name. |
+| `--follow-symlinks` | `--followsymlinks` | `write` | `false` | Follow source symlink targets. |
+| `--exclude` | none | `write` | `[]` | Repeatable basename or exact relative-path exclusion. |
+| `--allow-symlinks` | none | `extract` | `false` | Materialize permitted symlink entries. |
+| `--allow-hardlinks` | none | `extract` | `false` | Reserved; hard links are still rejected in v3. |
+| `--max-entry-bytes` | none | `extract` | unset | Maximum materialized bytes for one file entry. |
+| `--max-total-extracted-bytes` | none | `extract` | unset | Maximum total file bytes materialized by the command. |
+
+`--profile` is parsed as a common option, but the `write()` API currently reserves and ignores writer profiles. Do not use it to infer write-time safety behavior.
+
+Accepted format names are listed in [Formats](formats.md).
 
 ## write
 
-Creates an archive from a file or directory.
-
 ```sh
-dir-archiver write \
-  --source ./project \
-  --output ./project.zip \
-  --include-base-directory \
-  --exclude node_modules \
-  --exclude .git \
-  --json
+npx dir-archiver write --source ./project --output ./artifacts/project.zip --include-base-directory --exclude node_modules --exclude .git --json
 ```
 
-JSON result shape:
+Success JSON contains:
 
 ```json
 {
   "format": "zip",
   "source": "/absolute/path/project",
-  "destination": "/absolute/path/project.zip",
+  "destination": "/absolute/path/artifacts/project.zip",
   "entryCount": 3,
   "wrappedDirectoryCodec": false
 }
 ```
 
-Notes:
+Important behavior:
 
-- `--format` is optional when the destination extension is enough.
-- `--include-base-directory` keeps files under `project/` inside the archive.
-- `--exclude` may be repeated.
-- `--exclude` uses exact basenames or relative paths, not shell glob expansion.
+- `--exclude` is repeatable and does not expand glob syntax.
+- A basename exclusion matches anywhere in the source tree; a path exclusion is exact and source-relative.
+- The destination is replaced when it exists.
+- Keep the destination outside the source tree.
+- Empty directories and source filesystem metadata are not preserved.
+- `--follow-symlinks` can include content outside the source root and should be used only with trusted source layouts.
 
 ## open
 
-Opens an archive and returns the detected format payload used by CLI consumers.
-
 ```sh
-dir-archiver open \
-  --input ./project.zip \
-  --profile strict \
-  --json
+npx dir-archiver open --input ./artifacts/project.zip --profile strict --json
 ```
 
-JSON result shape:
+The CLI serializes only:
 
 ```json
 {
@@ -94,56 +105,41 @@ JSON result shape:
       "layers": ["zip"]
     },
     "confidence": "high",
-    "notes": ["Format inferred from magic bytes"]
+    "notes": ["Format inferred from filename"]
   }
 }
 ```
+
+Detection notes can differ based on whether the format came from an explicit flag, filename, or magic bytes. The CLI does not expose the live reader returned by the API's `open()` function.
 
 ## detect
 
-Identifies the archive format without listing or extracting entries.
-
 ```sh
-dir-archiver detect \
-  --input ./project.zip \
-  --json
+npx dir-archiver detect --input ./artifacts/project.zip --json
 ```
 
-JSON result shape:
+Success JSON has the same top-level `format` and `detection` fields shown for `open`.
 
-```json
-{
-  "format": "zip",
-  "detection": {
-    "schemaVersion": "1",
-    "inputKind": "file",
-    "detected": {
-      "container": "zip",
-      "compression": "none",
-      "layers": ["zip"]
-    },
-    "confidence": "high",
-    "notes": ["Format inferred from magic bytes"]
-  }
-}
+For ambiguous bytes or a misleading filename, force the format:
+
+```sh
+npx dir-archiver detect --input ./artifact.bin --format tar.br --json
 ```
 
 ## list
 
-Lists archive entries without extracting files.
-
 ```sh
-dir-archiver list \
-  --input ./project.zip \
-  --json
+npx dir-archiver list --input ./artifacts/project.zip --json
 ```
 
-JSON result shape:
+Success JSON contains `format`, `detection`, and `entries`:
 
 ```json
 {
   "format": "zip",
-  "detection": { "schemaVersion": "1" },
+  "detection": {
+    "schemaVersion": "1"
+  },
   "entries": [
     {
       "format": "zip",
@@ -156,56 +152,73 @@ JSON result shape:
 }
 ```
 
-Use `list` before extraction when you want to see the paths an archive contains.
+Entry sizes are strings so JSON does not lose integer precision.
 
 ## audit
 
-Checks archive safety without writing files.
-
 ```sh
-dir-archiver audit \
-  --input ./incoming.zip \
-  --profile agent \
-  --json
+npx dir-archiver audit --input ./incoming.zip --profile agent --json
 ```
 
-JSON result shape:
+A completed audit prints a report with `schemaVersion`, `ok`, `summary`, and `issues`.
 
 ```json
 {
   "schemaVersion": "1",
-  "ok": true,
+  "ok": false,
   "summary": {
     "entries": 3,
     "warnings": 0,
-    "errors": 0
+    "errors": 1
   },
-  "issues": []
+  "issues": [
+    {
+      "code": "ZIP_DUPLICATE_ENTRY",
+      "severity": "error",
+      "message": "..."
+    }
+  ]
 }
 ```
 
-Use `audit` before extracting archives from users, uploads, external services, package registries, or CI inputs.
+### Use audit as a gate
+
+The `audit` command exits `0` when it successfully produces a report, even when `report.ok` is `false`. A CI gate must inspect the payload.
+
+Create `check-audit.mjs`:
+
+```js
+import { readFile } from "node:fs/promises";
+
+const report = JSON.parse(await readFile(process.argv[2], "utf8"));
+
+if (!report.ok) {
+  console.error(JSON.stringify(report.issues, null, 2));
+  process.exitCode = 1;
+}
+```
+
+Then run:
+
+```sh
+npx dir-archiver audit --input ./incoming.zip --profile agent --json > audit.json
+node check-audit.mjs audit.json
+```
+
+The first command can still exit `1` for an operational failure such as an unreadable input or unsupported capability. Configure the CI shell to stop or branch on that exit before running the report checker.
 
 ## extract
 
-Extracts files into a directory.
-
 ```sh
-dir-archiver extract \
-  --input ./incoming.zip \
-  --output ./out \
-  --profile strict \
-  --max-entry-bytes 67108864 \
-  --max-total-extracted-bytes 536870912 \
-  --json
+npx dir-archiver extract --input ./incoming.zip --output ./staging/unpacked --profile strict --max-entry-bytes 67108864 --max-total-extracted-bytes 536870912 --json
 ```
 
-JSON result shape:
+Success JSON contains:
 
 ```json
 {
   "format": "zip",
-  "destination": "/absolute/path/out",
+  "destination": "/absolute/path/staging/unpacked",
   "extractedFiles": 2,
   "extractedDirectories": 1,
   "skippedEntries": 0,
@@ -213,26 +226,19 @@ JSON result shape:
 }
 ```
 
-Notes:
+Strict is the default and performs a pre-extraction audit. The command is not transactional: it creates the destination, replaces matching files, and can leave earlier entries behind after a later failure. Use a new staging directory under a trusted parent and remove it when the command fails.
 
-- `extract` defaults to the strict profile.
-- Symlinks are skipped unless `--allow-symlinks` is set.
-- Hard links are rejected in current v3 behavior even though `--allow-hardlinks` is reserved for the CLI contract.
-- Use byte limits for archives you did not create.
+Symlinks are skipped by default. Agent profile treats symlink presence as an audit error in the current dependency behavior, so `--allow-symlinks` does not make an agent audit pass. Hard links are rejected regardless of `--allow-hardlinks` in v3.
+
+See [Safety](safety.md).
 
 ## normalize
 
-Rewrites a supported archive into deterministic output.
-
 ```sh
-dir-archiver normalize \
-  --input ./incoming.zip \
-  --output ./normalized.zip \
-  --profile strict \
-  --json
+npx dir-archiver normalize --input ./incoming.zip --output ./staging/normalized.zip --profile strict --json
 ```
 
-JSON result shape:
+Success JSON contains the source `format` and a versioned `report`:
 
 ```json
 {
@@ -253,29 +259,22 @@ JSON result shape:
 }
 ```
 
-Unsupported normalize targets fail with `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+Normalization does not convert formats. Use a destination different from the input and publish the output only after success. Unsupported formats fail with `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
 
-## JSON output and streams
+## Automation contract
 
-For automation, pass `--json` and keep stdout and stderr separate.
+`--json` changes payload serialization, not every error produced by the operating system or dependencies.
 
-| Outcome | Exit code | Stream | Payload |
+| Outcome | Exit code | stdout | stderr |
 | --- | --- | --- | --- |
-| Success | `0` | stdout | Command result JSON. |
-| Runtime or archive-policy failure | `1` | stderr | `DirArchiverError` JSON. |
-| Usage or validation failure | `2` | stdout with `--json`, stderr otherwise | `DIRARCHIVER_USAGE` payload. |
+| Successful command | `0` | JSON result with `--json`; runtime object display otherwise | empty unless a dependency writes diagnostics |
+| Successful `audit` with `ok: false` | `0` | Audit report | empty |
+| CLI usage or validation failure with `--json` | `2` | `DIRARCHIVER_USAGE` JSON | empty |
+| CLI usage or validation failure without `--json` | `2` | empty | Usage text and issues |
+| Known `DirArchiverError` operational failure | `1` | empty | JSON error envelope |
+| Native filesystem, network, cancellation, or dependency failure | `1` | empty | Error stack or message; JSON is not guaranteed |
 
-Example usage failure:
-
-```sh
-set +e
-dir-archiver extract --json
-status=$?
-set -e
-printf 'status=%s\n' "$status"
-```
-
-JSON payload shape:
+A usage JSON payload has this shape:
 
 ```json
 {
@@ -283,25 +282,50 @@ JSON payload shape:
   "code": "DIRARCHIVER_USAGE",
   "message": "Invalid CLI arguments.",
   "issues": [
-    { "code": "REQUIRED", "message": "extract requires --input." },
-    { "code": "REQUIRED", "message": "extract requires --output." }
+    {
+      "code": "REQUIRED",
+      "message": "extract requires --input."
+    }
   ]
 }
 ```
 
-## Formats
+A known package error on stderr has this shape:
 
-Accepted format names:
-
-```txt
-zip, tar, tgz, tar.gz, gz, bz2, tar.bz2, zst, tar.zst, br, tar.br, xz, tar.xz
+```json
+{
+  "schemaVersion": "1",
+  "name": "DirArchiverError",
+  "code": "DIRARCHIVER_RESOURCE_LIMIT",
+  "message": "..."
+}
 ```
 
-Read [Formats](formats.md) for operation-level support notes.
+For robust automation:
+
+1. check the process exit code;
+2. parse stdout only when the command contract says it is JSON;
+3. keep stderr separate;
+4. for `audit`, also check `report.ok`;
+5. treat unexpected stderr text as an operational failure rather than attempting unconditional JSON parsing.
+
+Human-readable output uses the Node.js console representation and is not stable for machine parsing.
+
+## Repository-local CLI
+
+Contributors working in this repository can build and invoke the same executable directly:
+
+```sh
+npm run build
+node dist/cli.js list --input ./archive.zip --json
+```
+
+Consumer examples should use the installed binary instead.
 
 ## Related pages
 
 - [Getting started](getting-started.md)
 - [API guide](api.md)
 - [Safety](safety.md)
+- [Formats](formats.md)
 - [Troubleshooting](troubleshooting.md)
