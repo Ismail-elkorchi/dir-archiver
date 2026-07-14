@@ -209,7 +209,6 @@ function collectHeadingAnchors(source) {
 
 function githubHeadingSlug(value) {
   return value
-    .replace(/<[^>]*>/gu, '')
     .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
     .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
     .replace(/[`*_~]/gu, '')
