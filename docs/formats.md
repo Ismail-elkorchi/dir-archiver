@@ -1,65 +1,129 @@
 # Formats
 
-`dir-archiver` exposes one set of format names across the API and CLI.
+`dir-archiver` accepts these public format identifiers:
 
 ```txt
 zip, tar, tgz, tar.gz, gz, bz2, tar.bz2, zst, tar.zst, br, tar.br, xz, tar.xz
 ```
 
-Format support depends on the operation. Reading an archive, writing an archive, and normalizing an archive do not have the same constraints.
+The identifier being accepted by the API does not mean every operation is available for that format on every runtime. Read, write, and normalize capabilities come from the active bytefold runtime adapter.
 
-## Choosing a format
+The tables below describe the current `@ismail-elkorchi/bytefold` `0.8.x` matrix used by `dir-archiver` `3.0.x`.
 
-| Goal | Good default |
+## Choose a common format
+
+| Goal | Starting choice |
 | --- | --- |
-| Share a directory with most tools | `zip` |
-| Unix-style archive without compression | `tar` |
-| Compressed TAR with broad tooling support | `tar.gz` or `tgz` |
-| Single-file compression | `gz`, `zst`, or `br` for file sources |
-| Deterministic release artifact | `zip` plus `includeBaseDirectory: true`, then `normalize()` when supported |
+| Exchange a directory with broad desktop and server tooling | `zip` |
+| Preserve a TAR container without compression | `tar` |
+| Use broadly available compressed TAR tooling | `tar.gz` |
+| Compress one file on Node.js or Bun | `gz`, `zst`, or `br` |
+| Normalize a container archive | `zip`, `tar`, or a supported `tar.*` format |
 
-## Format inference
+Check the runtime table before choosing Brotli, Zstandard, BZip2, or XZ.
 
-`write()` infers the output format from the destination extension:
+## Aliases and inference
 
-```ts
-await write("./project", "./project.zip"); // zip
-await write("./project", "./project.tar.gz"); // tar.gz
+`tgz` and `tar.gz` describe the same gzip-compressed TAR family. They can both be passed explicitly, but destination extension inference canonicalizes both `.tgz` and `.tar.gz` to `tar.gz`:
+
+```js
+const result = await write("./project", "./project.tgz");
+console.log(result.format); // tar.gz
 ```
 
-Use `format` when the destination path does not include the extension you want:
+An explicit request can retain the alias reported by the writer:
 
-```ts
+```js
+const result = await write("./project", "./project.bundle", {
+  format: "tgz",
+});
+console.log(result.format); // tgz
+```
+
+`write()` checks compound extensions before shorter ones:
+
+| Destination suffix | Inferred format |
+| --- | --- |
+| `.zip` | `zip` |
+| `.tar` | `tar` |
+| `.tgz` | `tar.gz` |
+| `.tar.gz` | `tar.gz` |
+| `.gz` | `gz` |
+| `.bz2` | `bz2` |
+| `.tar.bz2` | `tar.bz2` |
+| `.zst` | `zst` |
+| `.tar.zst` | `tar.zst` |
+| `.br` | `br` |
+| `.tar.br` | `tar.br` |
+| `.xz` | `xz` |
+| `.tar.xz` | `tar.xz` |
+| unrecognized or missing extension | `zip` |
+
+Use `format` when the filename is intentionally generic:
+
+```js
 await write("./project", "./artifact", {
   format: "zip",
 });
 ```
 
-The CLI equivalent is `--format`:
+The CLI equivalent is `--format`.
 
-```sh
-dir-archiver write \
-  --source ./project \
-  --output ./artifact \
-  --format zip \
-  --json
-```
+## Node.js and Bun
+
+Node.js and Bun currently share the same bytefold support matrix.
+
+| Format | Detect, list, audit, extract | Write | Normalize | Notes |
+| --- | --- | --- | --- | --- |
+| `zip` | supported | supported | supported | Recommended general-purpose default. |
+| `tar` | supported | supported | supported | No compression. |
+| `tgz`, `tar.gz` | supported | supported | supported | Equivalent format family. |
+| `gz` | supported | supported for a file source | unsupported | A directory request maps to `tar.gz`. |
+| `bz2` | supported | unsupported | unsupported | A directory request maps to `tar.bz2`, which is also not writable. |
+| `tar.bz2` | supported | unsupported | supported | Read and normalize only. |
+| `zst` | supported | supported for a file source | unsupported | A directory request maps to `tar.zst`. |
+| `tar.zst` | supported | supported | supported | Requires active Zstandard capability. |
+| `br` | supported with a hint when bytes are ambiguous | supported for a file source | unsupported | A directory request maps to `tar.br`. |
+| `tar.br` | supported with a hint when bytes are ambiguous | supported | supported | Requires active Brotli capability. |
+| `xz` | supported | unsupported | unsupported | A directory request maps to `tar.xz`, which is also not writable. |
+| `tar.xz` | supported | unsupported | supported | Read and normalize only. |
+
+The Node.js CLI uses this matrix because the CLI executable runs on Node.js.
+
+## Deno
+
+Deno currently supports the same ZIP, TAR, gzip, BZip2, and XZ read surface, but Zstandard and Brotli operations are capability-gated by the Deno adapter.
+
+| Format | Detect, list, audit, extract | Write | Normalize | Notes |
+| --- | --- | --- | --- | --- |
+| `zip` | supported | supported | supported | |
+| `tar` | supported | supported | supported | |
+| `tgz`, `tar.gz` | supported | supported | supported | |
+| `gz` | supported | supported for a file source | unsupported | A directory request maps to `tar.gz`. |
+| `bz2` | supported | unsupported | unsupported | |
+| `tar.bz2` | supported | unsupported | supported | |
+| `xz` | supported | unsupported | unsupported | |
+| `tar.xz` | supported | unsupported | supported | |
+| `zst`, `tar.zst` | capability-gated | capability-gated | capability-gated | Do not assume availability in the current Deno adapter. |
+| `br`, `tar.br` | capability-gated | capability-gated | capability-gated | Do not assume availability in the current Deno adapter. |
+
+A capability-gated operation can fail even though the format name is valid. For portable Deno workflows, prefer ZIP, TAR, or gzip-compressed TAR unless the application has tested the required codec in its target Deno environment.
 
 ## Directory sources and single-file codecs
 
-Single-file compression formats normally wrap one file, not a directory tree. When the source is a directory and you request a single-file codec, `write()` converts the output format to a TAR-based archive when the writer supports it.
+A bare compression codec represents one byte stream, not a directory tree. For directory sources, `write()` maps the request before creating the writer:
 
-| Requested format | Directory output format |
-| --- | --- |
-| `gz` | `tar.gz` |
-| `bz2` | `tar.bz2` |
-| `xz` | `tar.xz` |
-| `zst` | `tar.zst` |
-| `br` | `tar.br` |
+| Requested format | Mapped directory format | Node.js/Bun | Deno |
+| --- | --- | --- | --- |
+| `gz` | `tar.gz` | succeeds | succeeds |
+| `zst` | `tar.zst` | succeeds when Zstandard capability is present | capability-gated |
+| `br` | `tar.br` | succeeds when Brotli capability is present | capability-gated |
+| `bz2` | `tar.bz2` | rejected by the current writer | rejected by the current writer |
+| `xz` | `tar.xz` | rejected by the current writer | rejected by the current writer |
 
-The return payload reports whether wrapping happened:
+When mapping succeeds, `WriteResult.wrappedDirectoryCodec` is `true` and `WriteResult.format` is the mapped format.
 
-```ts
+```js
 const result = await write("./project", "./project.gz", {
   format: "gz",
 });
@@ -68,43 +132,54 @@ console.log(result.format); // tar.gz
 console.log(result.wrappedDirectoryCodec); // true
 ```
 
-## Operation notes
+The filename is not rewritten. In this example the bytes are `tar.gz` even though the destination was named `project.gz`. Prefer a destination such as `project.tar.gz` so external tools receive an accurate extension.
 
-| Format | Read, list, audit, extract | Write notes | Normalize notes |
-| --- | --- | --- | --- |
-| `zip` | Accepted by the public format surface. | Supported by the current writer. | Supported when the active reader exposes normalization. |
-| `tar` | Accepted by the public format surface. | Supported by the current writer. | Supported when the active reader exposes normalization. |
-| `tgz` | Accepted by the public format surface. | Supported by the current writer. | Supported when the active reader exposes normalization. |
-| `tar.gz` | Accepted by the public format surface. | Supported by the current writer. | Supported when the active reader exposes normalization. |
-| `gz` | Accepted by the public format surface. | File sources write as `gz`; directory sources wrap to `tar.gz`. | Supported when the active reader exposes normalization. |
-| `bz2` | Accepted by the public format surface. | Current writer rejects `bz2`; directory sources wrap to `tar.bz2`, which is also rejected by the current writer. | Supported when the active reader exposes normalization. |
-| `tar.bz2` | Accepted by the public format surface. | Current writer rejects `tar.bz2`. | Supported when the active reader exposes normalization. |
-| `zst` | Accepted by the public format surface. | File sources write as `zst`; directory sources wrap to `tar.zst`. | Supported when the active reader exposes normalization. |
-| `tar.zst` | Accepted by the public format surface. | Supported by the current writer. | Supported when the active reader exposes normalization. |
-| `br` | Accepted by the public format surface. | File sources write as `br`; directory sources wrap to `tar.br`. | Supported when the active reader exposes normalization. |
-| `tar.br` | Accepted by the public format surface. | Supported by the current writer. | Supported when the active reader exposes normalization. |
-| `xz` | Accepted by the public format surface. | Current writer rejects `xz`; directory sources wrap to `tar.xz`, which is also rejected by the current writer. | Supported when the active reader exposes normalization. |
-| `tar.xz` | Accepted by the public format surface. | Current writer rejects `tar.xz`. | Supported when the active reader exposes normalization. |
+## Detection hints
 
-If a write format is rejected, the API throws `DIRARCHIVER_UNSUPPORTED_ENTRY` under the current v3 contract.
+Local paths and URLs normally provide a filename hint. Bytes, streams, and blobs do not.
 
-If normalization is unavailable for the opened archive reader, `normalize()` throws `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+Brotli signatures are not always enough to distinguish `br` from `tar.br`. Pass `filename` or `format` for non-path input:
 
-## Extension examples
+```js
+await list(bytes, {
+  filename: "upload.tar.br",
+});
+```
 
-| Destination | Inferred format |
-| --- | --- |
-| `project.zip` | `zip` |
-| `project.tar` | `tar` |
-| `project.tgz` | `tgz` |
-| `project.tar.gz` | `tar.gz` |
-| `project.gz` | `gz`, then directory sources wrap to `tar.gz` |
-| `project.tar.zst` | `tar.zst` |
-| `project.br` | `br`, then directory sources wrap to `tar.br` |
+```js
+await list(bytes, {
+  format: "tar.br",
+});
+```
+
+Forcing the wrong format can produce a parse or decompression error; it does not convert the input.
+
+## Normalize is not conversion
+
+`normalize(input, destination)` writes the same format opened from `input`. The destination extension does not select a new format.
+
+```js
+await normalize("./incoming.zip", "./normalized.zip"); // ZIP to ZIP
+```
+
+To create a different format, extract to a controlled staging directory and call `write()` with the desired format. That is a separate, non-atomic workflow and needs the same extraction safety controls described in [Safety](safety.md).
+
+Bare single-file formats are not normalizable in the current Node.js/Bun matrix. TAR-based layered formats can be normalizable even when the current writer does not support creating that compression format from scratch, as with `tar.bz2` and `tar.xz`.
+
+## Unsupported-operation errors
+
+The public API validates format names at the type or CLI-parser level, but runtime capability checks happen later.
+
+- `write()` maps its known unsupported BZip2/XZ writer cases to `DIRARCHIVER_UNSUPPORTED_ENTRY`.
+- `normalize()` maps absence of reader normalization support to `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+- Other codec capability failures can surface as dependency errors rather than a `DirArchiverError`.
+
+Handle both package errors and other operational errors. See [Troubleshooting](troubleshooting.md).
 
 ## Related pages
 
-- [API guide](api.md#write-source-destination-options)
-- [CLI guide](cli.md#formats)
-- [Create a ZIP from a directory](recipes/create-zip-from-directory.md)
-- [Normalize an archive](recipes/normalize-archive.md)
+- [API: write](api.md#write)
+- [API: detect](api.md#detect)
+- [API: normalize](api.md#normalize)
+- [CLI guide](cli.md)
+- [Safety](safety.md)
