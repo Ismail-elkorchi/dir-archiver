@@ -15,8 +15,9 @@ Start with the operation, process exit code, error type, stable package code whe
 | `DIRARCHIVER_NORMALIZE_UNSUPPORTED` | The opened format has no normalization operation | Check the format matrix or skip normalization. |
 | Writing `bz2`, `tar.bz2`, `xz`, or `tar.xz` fails | Those writer formats are unsupported in the current implementation | Choose ZIP, TAR, gzip, Zstandard, or Brotli where the target runtime supports it. |
 | Deno fails on Zstandard or Brotli | Those operations are capability-gated in the current Deno adapter | Use another format or run that workflow on Node.js/Bun. |
-| `.tgz` returns `format: "tar.gz"` | Extension inference canonicalizes the alias | Treat `tgz` and `tar.gz` as equivalent. |
+| `write()` reports `tar.gz` for `.tgz`, while read detection reports `tgz` | Write inference and read-side filename detection use different aliases for the same format family | Treat `tgz` and `tar.gz` as equivalent or force the identifier explicitly. |
 | The archive contains itself | The destination was created inside the source directory | Move the destination outside the source or exclude its exact relative path. |
+| A previous archive was lost after a failed write | The destination is opened and replaced before all source files are added | Write to a temporary sibling and rename it only after success. |
 | Empty directories disappeared | `write()` emits file entries, not empty directory entries | Add a marker file or use a lower-level writer when empty directories matter. |
 | Mode or modification time changed | The directory wrapper does not preserve source filesystem metadata | Normalize expectations or use a lower-level writer with metadata options. |
 | Files were overwritten or left after failure | Extraction is not transactional | Extract into a fresh staging directory and remove it on failure. |
@@ -139,6 +140,33 @@ await write("./project", "./artifacts/project.zip");
 
 When moving the output is impossible, exclude the exact relative path, but a separate artifact directory remains easier to reason about.
 
+## A write replaced the previous destination before failing
+
+`write()` is not transactional. It opens the destination before reading and adding every source file. An existing archive can therefore be replaced even when a later source read or writer operation fails.
+
+Write to a temporary sibling and rename only after success:
+
+```js
+import { rename, rm } from "node:fs/promises";
+import { write } from "dir-archiver";
+
+const temporary = "./artifacts/project.pending.zip";
+const published = "./artifacts/project.zip";
+
+try {
+  await write("./project", temporary, {
+    format: "zip",
+    includeBaseDirectory: true,
+  });
+  await rename(temporary, published);
+} catch (error) {
+  await rm(temporary, { force: true });
+  throw error;
+}
+```
+
+Replacing an existing published file atomically is platform- and application-specific. Choose the final publication strategy for the target filesystem rather than assuming one rename pattern works everywhere.
+
 ## Files landed at the wrong archive root
 
 Given `project/src/index.js`, the default stores `src/index.js`.
@@ -209,6 +237,8 @@ npx dir-archiver list --input ./artifact --format tar.br --json
 ```
 
 A forced format must match the bytes. It does not convert them.
+
+For gzip-compressed TAR, read-side filename inference in bytefold `0.8.x` reports `tgz` for both `.tgz` and `.tar.gz`. By contrast, `write()` destination inference reports `tar.gz` for both suffixes. The bytes and format family are equivalent; force `format` only when the exact alias matters to your application.
 
 ## Write format was rejected
 
