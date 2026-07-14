@@ -1,7 +1,7 @@
 {
   "name": "dir-archiver",
   "version": "3.0.2",
-  "description": "Deterministic directory archiving and extraction over zip, tar, and layered compression.",
+  "description": "Create, inspect, audit, normalize, and extract archives across Node.js, Deno, and Bun.",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
