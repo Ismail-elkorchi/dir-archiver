@@ -19,10 +19,6 @@ node dist/cli.js detect --input ./incoming.zip --json
 
 `audit` exits `0` when it successfully returns a report, including a report with `ok: false`. Persist the report and inspect it explicitly.
 
-```sh
-node dist/cli.js audit --input ./incoming.zip --profile agent --json > audit.json
-```
-
 Create or reuse a report checker:
 
 ```js
@@ -36,11 +32,13 @@ if (!report.ok) {
 }
 ```
 
+Run the checker only after the audit command succeeds operationally:
+
 ```sh
-node check-audit.mjs audit.json
+node dist/cli.js audit --input ./incoming.zip --profile agent --json > audit.json && node check-audit.mjs audit.json
 ```
 
-The audit command itself can still exit `1` for an operational failure. CI must stop or branch before running the checker when that happens.
+The audit command itself can still exit `1` for an operational failure. The `&&` prevents the checker from parsing an empty or incomplete report. Use the equivalent conditional mechanism on non-POSIX runners.
 
 ## Normalize through a temporary output
 
