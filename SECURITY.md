@@ -2,59 +2,57 @@
 
 ## Threat model
 
-Archive inputs are untrusted by default.
+Archive inputs can control entry names, entry types, compressed sizes, uncompressed sizes, and file contents. Risks include:
 
-Common archive risks include:
+- absolute paths and path traversal;
+- duplicate or colliding names;
+- symlink and hard-link behavior;
+- decompression and extraction resource exhaustion;
+- overwrite of existing destination files;
+- partial output after a later failure;
+- filesystem redirection through pre-existing symlinked destination components;
+- malformed input, unsupported codecs, and remote-input failures.
 
-- path traversal
-- absolute paths
-- symlink abuse
-- hard-link abuse
-- resource exhaustion during decompression or extraction
-- runtime or feature mismatches
+## Safe consumer baseline
 
-## Safe usage guidance
+For archives from users, uploads, build systems, package registries, URLs, or other external producers:
 
-For archives from users, uploads, package registries, CI inputs, or external services:
+1. use `profile: "strict"` or `profile: "agent"`;
+2. set reader limits and extraction materialization limits for the application budget;
+3. extract into a new staging directory beneath a trusted parent;
+4. keep the staging path free of pre-existing symlinked components;
+5. remove the entire staging directory after any failure;
+6. publish or rename the staged tree only after success;
+7. keep symlink extraction disabled unless the archive layout and destination are controlled;
+8. handle both `DirArchiverError` and non-package operational errors.
 
-1. Run `audit()` or `dir-archiver audit` before extraction.
-2. Use `profile: "strict"` or `profile: "agent"`.
-3. Set `maxEntryBytes` and `maxTotalExtractedBytes`.
-4. Keep symlink extraction disabled unless your application has a documented reason.
-5. Branch on `DirArchiverError.code`, not message text.
+Strict `extract()` performs its own pre-extraction audit. A separate `audit()` call is useful when the application needs to inspect or approve a report before extraction. Both API and CLI callers must inspect `report.ok`; the CLI audit command can exit `0` with `ok: false`.
 
-API pattern:
+Extraction is not transactional. It creates the destination, replaces matching files, and can leave completed entries after a later error.
 
-```ts
-await extract("./incoming.zip", "./out", {
-  profile: "strict",
-  maxEntryBytes: 64 * 1024 * 1024,
-  maxTotalExtractedBytes: 512 * 1024 * 1024,
-});
-```
+Complete guidance and a staging example are in [docs/safety.md](docs/safety.md).
 
-CLI pattern:
+## Reporting a vulnerability
 
-```sh
-dir-archiver extract \
-  --input ./incoming.zip \
-  --output ./out \
-  --profile strict \
-  --max-entry-bytes 67108864 \
-  --max-total-extracted-bytes 536870912 \
-  --json
-```
+Report suspected vulnerabilities through GitHub Security Advisories for this repository.
 
-Read [docs/safety.md](docs/safety.md) for complete usage guidance.
+Do not open a public issue, discussion, or pull request containing vulnerability details before coordinated disclosure.
 
-## Reporting vulnerabilities
+Include, when available:
 
-Report security issues through GitHub Security Advisories for this repository.
+- affected `dir-archiver` and runtime versions;
+- archive format;
+- minimal reproduction or fixture;
+- expected security boundary;
+- observed impact;
+- operating system and filesystem details;
+- whether the input was local, in memory, or remote.
 
-Do not open a public issue for a suspected vulnerability.
+Avoid sending unrelated sensitive archive contents.
 
 ## Disclosure workflow
 
-1. Reproduce and classify impact.
-2. Patch with tests.
-3. Publish release notes and remediation guidance.
+1. Reproduce and assess impact.
+2. Develop a patch and regression tests.
+3. Coordinate release timing and remediation guidance.
+4. Publish the advisory and changelog entry after a fixed release is available.
