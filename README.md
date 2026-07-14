@@ -19,11 +19,13 @@ Node.js and Bun:
 import { write } from "dir-archiver";
 ```
 
-Deno:
+Deno, after `deno add`:
 
 ```ts
-import { write } from "jsr:@ismail-elkorchi/dir-archiver";
+import { write } from "@ismail-elkorchi/dir-archiver";
 ```
+
+`deno add` records the JSR package in the project import map. A direct `jsr:@ismail-elkorchi/dir-archiver` import also works when you do not want an import-map entry.
 
 The package is ESM-only. The CLI is the Node.js executable shipped by the npm package; the JSR package provides the API, not the CLI.
 
@@ -98,7 +100,7 @@ For automation, pass `--json`, keep stdout and stderr separate, and inspect both
 
 ## Important behavior
 
-- `write()` replaces an existing destination archive and reads each source file into memory before adding it.
+- `write()` replaces an existing destination archive, reads each source file into memory before adding it, and can leave a partial destination if a later read or writer operation fails.
 - Keep a write destination outside the source tree. An output created inside the source can be discovered during traversal and included in itself.
 - `followSymlinks: true` follows target content and may cross outside the source tree. Use it only for a trusted source layout.
 - `extract()` creates the destination, overwrites matching files, and is not transactional. A failure can leave earlier entries on disk.
