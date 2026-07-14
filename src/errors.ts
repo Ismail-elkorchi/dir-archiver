@@ -1,20 +1,28 @@
 /**
- * Stable machine-readable error codes emitted by `dir-archiver`.
+ * Stable machine-readable error-code names emitted or reserved by
+ * `dir-archiver`.
  *
- * - `DIRARCHIVER_INVALID_SOURCE`: input bytes or paths could not be read.
- * - `DIRARCHIVER_INVALID_DESTINATION`: destination path or parent directory is
- * invalid for the requested operation.
- * - `DIRARCHIVER_PATH_TRAVERSAL`: strict extraction rejected a traversal or
- * absolute-path entry.
- * - `DIRARCHIVER_UNSUPPORTED_ENTRY`: the archive contains an entry type or
- * feature that `dir-archiver` does not support safely.
- * - `DIRARCHIVER_RESOURCE_LIMIT`: extraction exceeded configured byte limits.
- * - `DIRARCHIVER_RUNTIME_UNSUPPORTED`: the current runtime cannot satisfy a
- * required bytefold capability.
- * - `DIRARCHIVER_NORMALIZE_UNSUPPORTED`: normalization is unavailable for the
- * selected format/runtime pair.
+ * - `DIRARCHIVER_INVALID_SOURCE`: reserved for invalid source input. Some
+ *   current filesystem and dependency source failures still surface as native
+ *   errors.
+ * - `DIRARCHIVER_INVALID_DESTINATION`: reserved for invalid destinations. Some
+ *   current filesystem destination failures still surface as native errors.
+ * - `DIRARCHIVER_PATH_TRAVERSAL`: extraction rejected an empty, absolute,
+ *   drive-prefixed, `..`, out-of-root, or unsafe symlink-target path.
+ * - `DIRARCHIVER_UNSUPPORTED_ENTRY`: an audit, entry type, link, or writer
+ *   capability is unsupported by the wrapper policy.
+ * - `DIRARCHIVER_RESOURCE_LIMIT`: extraction exceeded an explicit
+ *   materialization byte limit.
+ * - `DIRARCHIVER_RUNTIME_UNSUPPORTED`: the current JavaScript runtime is not a
+ *   supported Node.js, Deno, or Bun environment.
+ * - `DIRARCHIVER_NORMALIZE_UNSUPPORTED`: the opened archive reader does not
+ *   expose normalization.
  * - `DIRARCHIVER_USAGE`: CLI invocation is missing required flags or uses
- * unsupported values.
+ *   unsupported values.
+ *
+ * Not every operational failure is converted into this code space. Consumers
+ * must also handle native filesystem, network, cancellation, and dependency
+ * errors.
  */
 export type DirArchiverErrorCode =
   | 'DIRARCHIVER_INVALID_SOURCE'
@@ -29,17 +37,17 @@ export type DirArchiverErrorCode =
 /**
  * Stable JSON payload emitted by `DirArchiverError.toJSON()`.
  *
- * This is the machine-readable error shape used by the CLI `--json` surface and
- * by API consumers that persist `DirArchiverError` objects to logs or reports.
+ * This is the machine-readable error envelope used by the CLI for known
+ * package failures and by API consumers that serialize `DirArchiverError`.
  */
 export interface DirArchiverErrorJson {
   /** Schema version for the serialized error payload. */
   schemaVersion: '1';
   /** Stable error class name used in serialized output. */
   name: 'DirArchiverError';
-  /** Stable machine-readable error code. */
+  /** Stable machine-readable package code. */
   code: DirArchiverErrorCode;
-  /** Human-readable summary of the failure. */
+  /** Human-readable summary; consumers should not parse this text. */
   message: string;
   /** Optional remediation hint when the error carries one. */
   hint?: string;
@@ -48,20 +56,20 @@ export interface DirArchiverErrorJson {
 }
 
 /**
- * Structured error contract for dir-archiver v3.
+ * Structured package error contract for dir-archiver v3.
  */
 export class DirArchiverError extends Error {
-  /** Stable machine-readable error code. */
+  /** Stable machine-readable package code. */
   readonly code: DirArchiverErrorCode;
-  /** Optional operator-facing hint for remediation. */
+  /** Optional operator-facing remediation hint. */
   readonly hint: string | undefined;
   /** Optional structured context for logs, JSON output, or diagnostics. */
   readonly context: Record<string, unknown> | undefined;
 
   /**
-   * Creates a structured error value safe for CLI and API consumers.
+   * Create a structured package error.
    *
-   * @param code Stable machine-readable error code.
+   * @param code Stable machine-readable package code.
    * @param message Human-readable summary of the failure.
    * @param options Optional hint, structured context, and nested cause.
    */
@@ -85,7 +93,7 @@ export class DirArchiverError extends Error {
   }
 
   /**
-   * Serializes the error into the stable JSON shape used by the CLI.
+   * Serialize the error into the stable package JSON envelope.
    *
    * The returned object always includes `schemaVersion`, `name`, `code`, and
    * `message`. Optional `hint` and `context` keys are omitted when unset.
