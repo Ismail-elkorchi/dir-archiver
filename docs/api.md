@@ -23,7 +23,13 @@ import {
 } from "dir-archiver";
 ```
 
-Bun uses the same npm package and import. Deno uses JSR:
+Bun uses the same npm package and import.
+
+Deno:
+
+```sh
+deno add jsr:@ismail-elkorchi/dir-archiver
+```
 
 ```ts
 import {
@@ -35,8 +41,10 @@ import {
   normalize,
   open,
   write,
-} from "jsr:@ismail-elkorchi/dir-archiver";
+} from "@ismail-elkorchi/dir-archiver";
 ```
+
+`deno add` records the JSR package in the project import map. A direct `jsr:@ismail-elkorchi/dir-archiver` import is also valid without an import-map entry.
 
 A default namespace export mirrors the named operation exports:
 
@@ -47,6 +55,21 @@ await dirArchiver.write("./project", "./project.zip");
 ```
 
 The package is ESM-only.
+
+## Exported types and dependency-owned results
+
+`dir-archiver` exports its option and wrapper-result types, including `OpenOptions`, `ExtractOptions`, `WriteOptions`, `DetectResult`, `ListResult`, `ExtractResult`, `NormalizeResult`, `ArchiveFormat`, `ArchiveProfile`, and `DirArchiverErrorCode`.
+
+The return types of `open()` and `audit()` are owned by bytefold and are not re-exported as named `dir-archiver` types. Let TypeScript infer them, or create a local alias:
+
+```ts
+import { audit, open } from "dir-archiver";
+
+type OpenedArchive = Awaited<ReturnType<typeof open>>;
+type AuditReport = Awaited<ReturnType<typeof audit>>;
+```
+
+Dependency-owned detection, audit, and normalization payloads carry their own `schemaVersion`. Do not assume every nested field is part of the wrapper's stable result contract.
 
 ## Inputs
 
@@ -191,19 +214,22 @@ A value without a path separator is a basename match anywhere below the source r
 ```js
 await write("./project", "./artifacts/project.zip", {
   exclude: [
-    "node_modules",   // every entry whose basename is node_modules
-    ".git",           // every entry whose basename is .git
+    "node_modules",    // every entry whose basename is node_modules
+    ".git",            // every entry whose basename is .git
     "build/debug.log", // exactly this source-relative path
   ],
 });
 ```
 
-Exclusions are not glob patterns. `"*.log"` does not match every log file. On Windows, matching is case-insensitive. An absolute exclusion path is accepted only when it resolves inside the source tree.
+Exclusions are not glob patterns. `"*.log"` does not match every log file. On Windows, matching is case-insensitive.
+
+An absolute exclusion is converted to a source-relative match only when it points inside the source tree. An absolute path equal to the source root or outside it has no effect because archive traversal supplies relative paths to the matcher.
 
 ### Write behavior to plan for
 
 - The destination parent is created when needed.
-- An existing destination file is replaced.
+- The destination is opened and an existing file is replaced before every source file has been read and added.
+- A later source or writer failure can leave a partial destination and can destroy the previous archive at that path.
 - Keep the destination outside the source tree; otherwise the newly opened output can be encountered during traversal.
 - Each source file is read fully into memory before it is added.
 - Only file entries are written. Empty directories are not preserved.
@@ -211,6 +237,8 @@ Exclusions are not glob patterns. `"*.log"` does not match every log file. On Wi
 - Symlinks are skipped by default.
 - With `followSymlinks: true`, target files are stored as regular files and symlinked directories are traversed. Targets can be outside the source root, so enable this only for a trusted source layout.
 - Traversal and archive entry ordering are deterministic and lexicographic, but byte-identical output also depends on the selected writer and format.
+
+For publication workflows, write to a temporary sibling and rename it only after success. See [A write replaced the previous destination before failing](troubleshooting.md#a-write-replaced-the-previous-destination-before-failing).
 
 ### Directory codecs
 
@@ -236,13 +264,15 @@ Resolves the format without enumerating entries.
 
 ```js
 const result = await detect("./artifact.tar.gz");
-console.log(result.format);
+console.log(result.format); // tgz with bytefold 0.8.x filename inference
 console.log(result.detection);
 ```
 
-`DetectResult.format` is the resolved public format. `detection` is the bytefold report describing input kind, detected layers, confidence, and notes. For `.tgz`, extension inference currently reports the canonical `tar.gz` identifier.
+`DetectResult.format` is the resolved public format. `detection` is the bytefold report describing input kind, detected layers, confidence, and notes.
 
-Brotli (`br` and `tar.br`) can require `filename` or `format` when the input has no usable filename.
+For gzip-compressed TAR, read-side filename inference maps both `.tgz` and `.tar.gz` to `tgz`. An explicit `format: "tar.gz"` preserves `tar.gz`. This differs from `write()` destination inference, which reports `tar.gz` for both suffixes. The two identifiers are aliases for the same format family.
+
+Brotli (`br` and `tar.br`) requires `filename` or `format` when the input has no usable filename.
 
 ## list
 
@@ -273,10 +303,12 @@ Each `size` is a decimal string, not a JavaScript number, so large integer value
 ## audit
 
 ```ts
-audit(input: DirArchiverInput, options?: OpenOptions): Promise<ArchiveAuditReport>
+audit(input: DirArchiverInput, options?: OpenOptions): Promise<AuditReport>
 ```
 
-Returns a non-mutating report. A completed audit does not throw merely because the report contains error-severity issues; check `report.ok`.
+`AuditReport` above is descriptive shorthand for the inferred bytefold-owned return type; it is not a named export from `dir-archiver`.
+
+`audit()` returns a non-mutating report. A completed audit does not throw merely because the report contains error-severity issues; check `report.ok`.
 
 ```js
 const report = await audit("./incoming.zip", {
@@ -388,8 +420,10 @@ Bare single-file formats (`gz`, `bz2`, `xz`, `zst`, and `br`) do not support nor
 ## open
 
 ```ts
-open(input: DirArchiverInput, options?: OpenOptions): Promise<ArchiveReader>
+open(input: DirArchiverInput, options?: OpenOptions): Promise<OpenedArchive>
 ```
+
+`OpenedArchive` above is descriptive shorthand for the inferred bytefold-owned return type; it is not a named export from `dir-archiver`.
 
 Returns the lower-level bytefold reader used by the helper operations.
 
@@ -417,9 +451,9 @@ The public reader contract exposes:
 - `assertSafe()`
 - optional `normalizeToWritable()`
 
-The current public `ArchiveReader` type does not define a portable `close()` or `dispose()` method. Do not call undocumented lifecycle methods in cross-runtime code. Prefer `detect()`, `list()`, `audit()`, and `normalize()` when their higher-level result is enough; those helpers manage the operation internally.
+The current public reader type does not define a portable `close()` or `dispose()` method. Do not call undocumented lifecycle methods in cross-runtime code. Prefer `detect()`, `list()`, `audit()`, and `normalize()` when their higher-level result is enough; those helpers manage the operation internally.
 
-The CLI `open` command is different: it prints format and detection metadata, not a live reader.
+Because `open()` exposes dependency-owned behavior directly, use it only when the higher-level operations cannot express the required flow. The CLI `open` command is different: it prints format and detection metadata, not a live reader.
 
 ## Errors
 
