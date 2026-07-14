@@ -1,8 +1,6 @@
 # Support
 
-## Start with the docs
-
-For usage questions, check these pages first:
+## Start with the documentation
 
 - [Getting started](docs/getting-started.md)
 - [API guide](docs/api.md)
@@ -11,34 +9,36 @@ For usage questions, check these pages first:
 - [Formats](docs/formats.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
-## Usage questions
+## Usage questions and bug reports
 
-Open a GitHub issue and include:
+Open a GitHub issue with a minimal, non-sensitive reproduction and include:
 
-- runtime: Node.js, Deno, or Bun
-- runtime version
-- `dir-archiver` version
-- API call or CLI command
-- minimal input layout or archive description
-- expected result
-- actual result
-- full `DirArchiverError.code` or CLI exit code
+- `dir-archiver` version;
+- runtime name and version;
+- operating system;
+- API call or exact CLI command;
+- archive format and how it was detected or forced;
+- input kind: local path, URL, bytes, stream, or blob;
+- expected result;
+- actual result;
+- `DirArchiverError.code` and `context` when present;
+- otherwise, the error name and message;
+- CLI exit code, stdout, and stderr captured separately;
+- audit `schemaVersion`, `ok`, summary, and issues when relevant.
 
-For CLI automation issues, also include whether `--json` was used and whether stdout and stderr were captured separately.
+For filesystem problems, include the source, destination, and current-working-directory relationship without publishing private paths. For format problems, include whether the runtime is Node.js, Deno, or Bun because codec capabilities differ.
 
-## Bug reports
+Avoid attaching confidential archives. Build the smallest fixture that reproduces the problem when possible.
 
-Open a GitHub issue with:
+## CLI automation questions
 
-- a minimal reproducible example
-- exact command or code
-- expected behavior
-- actual behavior
-- archive format
-- operating system
+State whether `--json` was used. Remember:
 
-Avoid attaching sensitive archives. Rebuild a small fixture that reproduces the issue when possible.
+- `audit` can exit `0` with `ok: false`;
+- usage failures exit `2`;
+- known package failures exit `1` with JSON on stderr;
+- native and dependency failures can exit `1` with text on stderr.
 
 ## Security reports
 
-Follow [SECURITY.md](SECURITY.md) for private disclosure.
+Follow [SECURITY.md](SECURITY.md) and use GitHub Security Advisories for private disclosure. Do not open a public issue containing vulnerability details.
