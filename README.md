@@ -127,5 +127,4 @@ Read [Safety](docs/safety.md) before processing archives from users or external 
 - [Changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md)
 - [Support](SUPPORT.md)
-- [Contributing](CONTRIBUTING.md)
 - License: MIT
