@@ -1,6 +1,6 @@
 # Documentation
 
-The documentation has one canonical page for each kind of information. Start with the task you need to complete rather than reading every page in order.
+Start with the task you need to complete. Each subject has one canonical page so consumers do not have to reconcile overlapping tutorials, recipes, and reference documents.
 
 ## Learn the library
 
@@ -8,7 +8,7 @@ The documentation has one canonical page for each kind of information. Start wit
 | --- | --- |
 | [Getting started](getting-started.md) | A self-contained create, inspect, audit, and extract flow. |
 | [API guide](api.md) | Inputs, signatures, options, results, errors, and operation caveats. |
-| [CLI guide](cli.md) | Installation, commands, flags, output streams, exit codes, and CI gating. |
+| [CLI guide](cli.md) | Installation, commands, flags, output streams, exit codes, and automation. |
 | [Safety](safety.md) | Profiles, untrusted input, resource limits, links, overwrite behavior, and staging. |
 | [Formats](formats.md) | Format inference, aliases, write support, normalization, and runtime differences. |
 | [Troubleshooting](troubleshooting.md) | Symptoms, causes, diagnostics, and first fixes. |
@@ -20,7 +20,7 @@ The documentation has one canonical page for each kind of information. Start wit
 | Create an archive from a directory | [API: write](api.md#write) |
 | Keep a stable root folder in the archive | [API: includeBaseDirectory](api.md#include-the-source-directory) |
 | Exclude local files | [API: exclude](api.md#exclude-source-paths) |
-| Inspect an archive without extracting | [API: detect and list](api.md#detect) |
+| Inspect an archive without extracting | [API: detect](api.md#detect) and [API: list](api.md#list) |
 | Decide whether an archive is acceptable | [API: audit](api.md#audit) |
 | Extract an external archive | [Safety: recommended extraction flow](safety.md#recommended-extraction-flow) |
 | Use the CLI in automation | [CLI: automation contract](cli.md#automation-contract) |
@@ -37,6 +37,4 @@ The documentation has one canonical page for each kind of information. Start wit
 - [Contributing](../CONTRIBUTING.md)
 - [Changelog](../CHANGELOG.md)
 
-Maintainer-only CI notes live in the source repository's `maintenance/` directory. They are intentionally excluded from the published npm and JSR documentation.
-
-Older documentation paths are retained as short moved-page notices so links from previous releases continue to lead to the canonical pages. New material belongs only on the pages listed above.
+Older documentation paths remain in the source repository as small moved-page notices so existing GitHub links continue to work. They are not included in new npm or JSR packages, and new documentation belongs only on the canonical pages above.
