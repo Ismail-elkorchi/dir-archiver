@@ -32,7 +32,7 @@ The examples below use one-line commands so they can be adapted to different she
 | `list` | Print JSON-safe entry summaries. |
 | `audit` | Print an issue report without extracting. |
 | `extract` | Materialize entries in a local directory. |
-| `normalize` | Rewrite a supported archive deterministically in the same format. |
+| `normalize` | Produce deterministic normalized output when the reader supports it. |
 
 When no command token is present, supplying both `--source` and `--output` selects `write`. Explicit commands are easier to review and are used throughout this guide.
 
@@ -125,13 +125,13 @@ npx dir-archiver detect --input ./artifacts/project.zip --json
 
 Success JSON has the same top-level `format` and `detection` fields shown for `open`.
 
-For ambiguous bytes or a misleading filename, force the format:
+For ambiguous bytes or a misleading filename, force the parser:
 
 ```sh
 npx dir-archiver detect --input ./artifact.bin --format tar.br --json
 ```
 
-For gzip-compressed TAR, current read-side filename inference reports `tgz` for both `.tgz` and `.tar.gz`. `write` destination inference reports `tar.gz` for those suffixes. They are equivalent aliases; use `--format` when the exact identifier matters.
+For gzip-compressed TAR, read operations report `tgz` for `.tgz`, `.tar.gz`, magic-byte discovery, and `--format tar.gz`. `write` destination inference reports `tar.gz` for the two filename suffixes, while an explicit writer request can report either alias. Treat `tgz` and `tar.gz` as equivalent rather than relying on alias spelling.
 
 ## list
 
@@ -240,11 +240,13 @@ See [Safety](safety.md).
 
 ## normalize
 
+ZIP example:
+
 ```sh
 npx dir-archiver normalize --input ./incoming.zip --output ./staging/normalized.zip --profile strict --json
 ```
 
-Success JSON contains the source `format` and a versioned `report`:
+Success JSON contains the input reader `format` and a versioned `report`:
 
 ```json
 {
@@ -265,7 +267,16 @@ Success JSON contains the source `format` and a versioned `report`:
 }
 ```
 
-Normalization does not convert formats. Use a destination different from the input and publish the output only after success. Unsupported formats fail with `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+The destination extension does not select a conversion. Current output behavior is:
+
+- ZIP input writes normalized ZIP.
+- TAR input writes normalized TAR.
+- Layered TAR input such as `tgz`, `tar.bz2`, `tar.zst`, `tar.br`, or `tar.xz` writes the normalized inner TAR without reapplying compression.
+- Bare single-file codecs do not support normalization.
+
+For a layered-TAR input, use a `.tar` destination unless a later step recompresses it. The JSON `format` field can still report the input reader format, such as `tgz`.
+
+Use a destination different from the input and publish output only after success. Missing normalization support fails with `DIRARCHIVER_NORMALIZE_UNSUPPORTED`; runtime codec failures can use dependency errors.
 
 ## Automation contract
 
