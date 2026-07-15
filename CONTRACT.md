@@ -68,8 +68,10 @@ A valid format identifier does not guarantee that every operation is available o
 - The destination format is inferred from its extension and falls back to `zip` when no supported extension is recognized.
 - Directory traversal and emitted archive paths are lexicographically ordered and use `/` separators.
 - `includeBaseDirectory` defaults to `false`.
-- Source symlinks are skipped unless `followSymlinks` is `true`.
+- Links encountered while walking a directory source are skipped unless `followSymlinks` is `true`.
 - `exclude` uses basename or exact source-relative matching; wildcard syntax is not expanded.
+- A single regular-file source is stored under its basename; directory-only traversal options do not filter or rename that file.
+- `followSymlinks` controls directory traversal and is not a source-containment guarantee for a top-level path.
 - `entryCount` counts emitted file entries.
 - Empty source directories and source filesystem metadata are not preserved by the directory wrapper.
 - Directory requests for `gz`, `bz2`, `xz`, `zst`, and `br` are mapped to the corresponding TAR-based format before writer capability is checked.
