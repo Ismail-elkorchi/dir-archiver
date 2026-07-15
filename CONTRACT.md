@@ -61,7 +61,7 @@ zip, tar, tgz, tar.gz, gz, bz2, tar.bz2, zst, tar.zst, br, tar.br, xz, tar.xz
 
 A valid format identifier does not guarantee that every operation is available on every runtime. The current matrix is documented in [Formats](docs/formats.md).
 
-`tgz` and `tar.gz` identify the same format family. Current read operations report gzip-compressed TAR as `tgz`, including when `tar.gz` is forced. Write destination inference reports `tar.gz` for `.tgz` and `.tar.gz`, while an explicit writer request can report either alias. Consumers should treat the aliases as equivalent.
+`tgz` and `tar.gz` identify the same format family. Consumers must not rely on an inferred read result preserving one alias spelling. Current read operations report gzip-compressed TAR as `tgz`; current writer inference and explicit writer requests can report `tar.gz` or `tgz`.
 
 ## `write()` guarantees
 
@@ -95,13 +95,11 @@ Extraction is not transactional. The destination is created before the strict or
 
 - Deterministic normalization is requested by default.
 - The destination suffix does not select a conversion.
-- `NormalizeResult.format` identifies the opened source reader.
-- ZIP input writes normalized ZIP; TAR input writes normalized TAR.
-- Layered TAR input writes the normalized inner TAR without reapplying compression in the current bytefold-backed implementation.
-- Bare compressed-stream readers do not expose normalization.
+- `NormalizeResult.format` identifies the opened source reader, not necessarily the emitted byte format.
+- Output bytes and operation availability are delegated to the active bytefold reader.
 - A reader without normalization support causes `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
 
-Normalization is not transactional and can leave a partial destination after failure. For layered input, consumers should use a `.tar` destination unless a later step recompresses the result.
+Normalization is not transactional and can leave a partial destination after failure. The current bytefold `0.8.x` output matrix, including layered-TAR output, is documented in [Formats](docs/formats.md) and is a dependency-owned capability rather than an alias-preservation guarantee.
 
 ## Error contract
 
