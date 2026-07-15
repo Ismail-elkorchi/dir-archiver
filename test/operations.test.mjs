@@ -71,3 +71,34 @@ test('directory + single-file codec wraps into tar.<codec>', async () => {
     removeDir(tmpRoot);
   }
 });
+
+test('gzip-compressed TAR reads as tgz and normalizes to inner TAR bytes', async () => {
+  const tmpRoot = mkdtempSync(path.join(tmpdir(), 'dir-archiver-v3-'));
+  try {
+    const source = path.join(tmpRoot, 'source');
+    mkdirSync(source, { recursive: true });
+    writeFileSync(path.join(source, 'hello.txt'), 'hello');
+
+    const archive = path.join(tmpRoot, 'source.tar.gz');
+    const writeResult = await write(source, archive, { format: 'tar.gz' });
+    assert.equal(writeResult.format, 'tar.gz');
+
+    const inferred = await detect(archive);
+    assert.equal(inferred.format, 'tgz');
+
+    const forced = await detect(archive, { format: 'tar.gz' });
+    assert.equal(forced.format, 'tgz');
+
+    const normalized = path.join(tmpRoot, 'normalized.tar');
+    const normalizeResult = await normalize(archive, normalized, { deterministic: true });
+    assert.equal(normalizeResult.format, 'tgz');
+
+    const normalizedDetection = await detect(normalized);
+    assert.equal(normalizedDetection.format, 'tar');
+
+    const normalizedEntries = await list(normalized);
+    assert.equal(normalizedEntries.entries.some((entry) => entry.name === 'hello.txt'), true);
+  } finally {
+    removeDir(tmpRoot);
+  }
+});
