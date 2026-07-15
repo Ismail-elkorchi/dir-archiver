@@ -27,7 +27,7 @@ The examples below use one-line commands so they can be adapted to different she
 | Command | Purpose |
 | --- | --- |
 | `write` | Create an archive from a local file or directory. |
-| `open` | Open an archive with the requested profile and print format/detection metadata. |
+| `open` | Open an archive and print format/detection metadata. |
 | `detect` | Resolve an archive format. |
 | `list` | Print JSON-safe entry summaries. |
 | `audit` | Print an issue report without extracting. |
@@ -46,15 +46,15 @@ When no command token is present, supplying both `--source` and `--output` selec
 | `--format` | none | all commands | auto/inferred | Force a public format identifier. |
 | `--profile` | none | read, audit, extract, normalize | `strict` | Select `compat`, `strict`, or `agent`. |
 | `--json` | none | all commands | `false` | Serialize the command payload as JSON. |
-| `--include-base-directory` | `--includebasedir` | `write` | `false` | Prefix entries with the source directory name. |
-| `--follow-symlinks` | `--followsymlinks` | `write` | `false` | Follow source symlink targets. |
-| `--exclude` | none | `write` | `[]` | Repeatable basename or exact relative-path exclusion. |
+| `--include-base-directory` | `--includebasedir` | `write` | `false` | Prefix directory entries with the source directory name. |
+| `--follow-symlinks` | `--followsymlinks` | `write` | `false` | Follow links found while walking a directory source. |
+| `--exclude` | none | `write` | `[]` | Repeatable basename or exact relative-path exclusion for a directory source. |
 | `--allow-symlinks` | none | `extract` | `false` | Materialize permitted symlink entries. |
 | `--allow-hardlinks` | none | `extract` | `false` | Reserved; hard links are still rejected in v3. |
 | `--max-entry-bytes` | none | `extract` | unset | Maximum materialized bytes for one file entry. |
 | `--max-total-extracted-bytes` | none | `extract` | unset | Maximum total file bytes materialized by the command. |
 
-`--profile` is parsed as a common option, but the `write()` API currently reserves and ignores writer profiles. Do not use it to infer write-time safety behavior.
+`--profile` is parsed as a common option, but `write()` currently reserves and ignores writer profiles. Do not use it to infer write-time safety behavior.
 
 Accepted format names are listed in [Formats](formats.md).
 
@@ -78,13 +78,15 @@ Success JSON contains:
 
 Important behavior:
 
+- `--include-base-directory`, `--exclude`, and `--follow-symlinks` apply to directory traversal.
+- A single regular-file source is stored under its basename; those directory-only flags do not filter or rename it.
+- `--follow-symlinks` controls links found during a directory walk and is not a containment guarantee for a top-level source path.
 - `--exclude` is repeatable and does not expand glob syntax.
 - A basename exclusion matches anywhere in the source tree; a path exclusion is exact and source-relative.
 - The destination is opened and an existing file is replaced before every source file has been added.
-- A failure can leave a partial output and can destroy the previous archive at that destination.
+- A failure can leave partial output and can destroy the previous archive at that destination.
 - Keep the destination outside the source tree.
 - Empty directories and source filesystem metadata are not preserved.
-- `--follow-symlinks` can include content outside the source root and should be used only with trusted source layouts.
 
 For publication workflows, write to a temporary sibling with an explicit `--format`, then rename it only after the command succeeds. See [Troubleshooting](troubleshooting.md#a-write-replaced-the-previous-destination-before-failing).
 
@@ -94,7 +96,7 @@ For publication workflows, write to a temporary sibling with an explicit `--form
 npx dir-archiver open --input ./artifacts/project.zip --profile strict --json
 ```
 
-The CLI serializes only:
+The CLI serializes only format and detection metadata:
 
 ```json
 {
@@ -129,7 +131,7 @@ For ambiguous bytes or a misleading filename, force the format:
 npx dir-archiver detect --input ./artifact.bin --format tar.br --json
 ```
 
-For gzip-compressed TAR, read-side filename inference in bytefold `0.8.x` reports `tgz` for both `.tgz` and `.tar.gz`. `write` destination inference reports `tar.gz` for those suffixes. They are equivalent aliases; use `--format` when the exact identifier matters.
+For gzip-compressed TAR, current read-side filename inference reports `tgz` for both `.tgz` and `.tar.gz`. `write` destination inference reports `tar.gz` for those suffixes. They are equivalent aliases; use `--format` when the exact identifier matters.
 
 ## list
 
@@ -203,13 +205,13 @@ if (!report.ok) {
 }
 ```
 
-Then run the checker only after the audit command succeeds operationally:
+Run the checker only after the audit command succeeds operationally:
 
 ```sh
 npx dir-archiver audit --input ./incoming.zip --profile agent --json > audit.json && node check-audit.mjs audit.json
 ```
 
-The audit command can exit `1` for an operational failure such as an unreadable input or unsupported capability. The `&&` prevents the checker from parsing an empty or incomplete report in that case. Use the equivalent conditional mechanism in shells that do not support this syntax.
+The audit command can exit `1` for an unreadable input, unsupported capability, or another operational failure. The `&&` prevents the checker from parsing an empty or incomplete report. Use the equivalent conditional mechanism in shells that do not support this syntax.
 
 ## extract
 
@@ -232,7 +234,7 @@ Success JSON contains:
 
 Strict is the default and performs a pre-extraction audit. The command is not transactional: it creates the destination, replaces matching files, and can leave earlier entries behind after a later failure. Use a new staging directory under a trusted parent and remove it when the command fails.
 
-Symlinks are skipped by default. Agent profile treats symlink presence as an audit error in the current dependency behavior, so `--allow-symlinks` does not make an agent audit pass. Hard links are rejected regardless of `--allow-hardlinks` in v3.
+Symlinks are skipped by default. Agent profile currently treats symlink presence as an audit error, so `--allow-symlinks` does not make an agent audit pass. Hard links are rejected regardless of `--allow-hardlinks` in v3.
 
 See [Safety](safety.md).
 
@@ -271,12 +273,12 @@ Normalization does not convert formats. Use a destination different from the inp
 
 | Outcome | Exit code | stdout | stderr |
 | --- | --- | --- | --- |
-| Successful command | `0` | JSON result with `--json`; runtime object display otherwise | empty unless a dependency writes diagnostics |
-| Successful `audit` with `ok: false` | `0` | Audit report | empty |
-| CLI usage or validation failure with `--json` | `2` | `DIRARCHIVER_USAGE` JSON | empty |
-| CLI usage or validation failure without `--json` | `2` | empty | Usage text and issues |
-| Known `DirArchiverError` operational failure | `1` | empty | JSON error envelope |
-| Native filesystem, network, cancellation, or dependency failure | `1` | empty | Error stack or message; JSON is not guaranteed |
+| Successful command | `0` | JSON result with `--json`; human output otherwise | normally empty |
+| Successful `audit` with `ok: false` | `0` | Audit report | normally empty |
+| Usage failure with `--json` | `2` | `DIRARCHIVER_USAGE` JSON | empty |
+| Usage failure without `--json` | `2` | empty | Usage text and issues |
+| Known `DirArchiverError` failure | `1` | empty | JSON error envelope |
+| Native or dependency failure | `1` | empty | Error stack or message; JSON is not guaranteed |
 
 A usage JSON payload has this shape:
 
@@ -311,7 +313,7 @@ For robust automation:
 2. parse stdout only when the command contract says it is JSON;
 3. keep stderr separate;
 4. for `audit`, also check `report.ok`;
-5. treat unexpected stderr text as an operational failure rather than attempting unconditional JSON parsing.
+5. treat unexpected stderr text as an operational failure rather than parsing it unconditionally as JSON.
 
 Human-readable output uses the Node.js console representation and is not stable for machine parsing.
 
