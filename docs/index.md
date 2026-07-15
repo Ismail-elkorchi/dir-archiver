@@ -29,12 +29,11 @@ Start with the task you need to complete. Each subject has one canonical page so
 | Normalize output | [API: normalize](api.md#normalize) |
 | Handle failures | [Troubleshooting](troubleshooting.md) |
 
-## Contracts and project policies
+## Contracts and support
 
 - [Public behavior contract](../CONTRACT.md)
 - [Security policy](../SECURITY.md)
 - [Support](../SUPPORT.md)
-- [Contributing](../CONTRIBUTING.md)
 - [Changelog](../CHANGELOG.md)
 
 Older documentation paths remain in the source repository as small moved-page notices so existing GitHub links continue to work. They are not included in new npm or JSR packages, and new documentation belongs only on the canonical pages above.
