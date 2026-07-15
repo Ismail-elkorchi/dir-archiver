@@ -51,11 +51,10 @@ const jsrManifest = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'jsr.json'), 'utf8')
 );
 
-const npmEntries = [
-  'package.json',
-  ...packageManifest.files
-];
-const jsrEntries = jsrManifest.publish.include;
+const publicationEntries = new Map([
+  ['npm', ['package.json', ...packageManifest.files]],
+  ['JSR', jsrManifest.publish.include]
+]);
 
 const walk = (directory) => {
   const files = [];
@@ -136,25 +135,21 @@ const resolveLink = (sourcePath, target) => {
   const rawFragment = hashIndex === -1 ? '' : target.slice(hashIndex + 1);
   const withoutQuery = rawPath.split('?')[0] ?? '';
 
-  let decodedPath;
-  let decodedFragment;
   try {
-    decodedPath = decodeURIComponent(withoutQuery);
-    decodedFragment = decodeURIComponent(rawFragment).toLowerCase();
+    const decodedPath = decodeURIComponent(withoutQuery);
+    const filePath = decodedPath.length === 0
+      ? sourcePath
+      : decodedPath.startsWith('/')
+        ? path.join(repoRoot, decodedPath.slice(1))
+        : path.resolve(path.dirname(sourcePath), decodedPath);
+
+    return {
+      filePath,
+      fragment: decodeURIComponent(rawFragment).toLowerCase()
+    };
   } catch {
     return undefined;
   }
-
-  const filePath = decodedPath.length === 0
-    ? sourcePath
-    : decodedPath.startsWith('/')
-      ? path.join(repoRoot, decodedPath.slice(1))
-      : path.resolve(path.dirname(sourcePath), decodedPath);
-
-  return {
-    filePath,
-    fragment: decodedFragment
-  };
 };
 
 const githubHeadingSlug = (value) => value
@@ -212,13 +207,11 @@ const isInsideRepository = (filePath) => {
     || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
 };
 
-const normalizeManifestEntry = (entry) => entry.replace(/\\/gu, '/');
-
 const manifestIncludesPath = (relativePath, entries) => {
   const normalizedPath = relativePath.replace(/\\/gu, '/');
 
   for (const rawEntry of entries) {
-    const entry = normalizeManifestEntry(rawEntry);
+    const entry = rawEntry.replace(/\\/gu, '/');
     if (entry.endsWith('/**')) {
       const prefix = entry.slice(0, -3);
       if (normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)) {
@@ -273,10 +266,7 @@ test('relative Markdown links and heading anchors resolve', () => {
   assert.deepEqual(failures, []);
 });
 
-for (const [label, entries] of [
-  ['npm', npmEntries],
-  ['JSR', jsrEntries]
-]) {
+for (const [label, entries] of publicationEntries) {
   test(`${label} Markdown links stay inside the published package`, () => {
     const failures = [];
 
@@ -306,6 +296,19 @@ for (const [label, entries] of [
   });
 }
 
+test('canonical consumer pages are present and published', () => {
+  for (const requiredPath of canonicalConsumerDocs) {
+    assert.equal(fs.existsSync(path.join(repoRoot, requiredPath)), true, `missing ${requiredPath}`);
+    for (const [label, entries] of publicationEntries) {
+      assert.equal(
+        manifestIncludesPath(requiredPath, entries),
+        true,
+        `${requiredPath} must be included in the ${label} package`
+      );
+    }
+  }
+});
+
 test('consumer documentation stays on canonical pages', () => {
   const docsMarkdown = walk(path.join(repoRoot, 'docs'))
     .filter((filePath) => path.extname(filePath).toLowerCase() === '.md')
@@ -317,10 +320,6 @@ test('consumer documentation stays on canonical pages', () => {
   ]);
   const unexpected = docsMarkdown.filter((relativePath) => !allowedDocs.has(relativePath));
 
-  for (const requiredPath of canonicalConsumerDocs) {
-    assert.equal(fs.existsSync(path.join(repoRoot, requiredPath)), true, `missing ${requiredPath}`);
-  }
-
   assert.deepEqual(
     unexpected,
     [],
@@ -328,7 +327,7 @@ test('consumer documentation stays on canonical pages', () => {
   );
 });
 
-test('legacy documentation paths remain minimal moved-page notices', () => {
+test('legacy documentation paths remain repository-only move notices', () => {
   for (const [relativePath, target] of legacyMovedPages) {
     const filePath = path.join(repoRoot, relativePath);
     assert.equal(fs.existsSync(filePath), true, `missing ${relativePath}`);
@@ -341,5 +340,13 @@ test('legacy documentation paths remain minimal moved-page notices', () => {
     assert.equal(links[0]?.target, target, `${relativePath} must point to ${target}`);
     assert.equal(source.includes('```'), false, `${relativePath} must not duplicate examples`);
     assert.ok(source.length < 500, `${relativePath} must stay minimal`);
+
+    for (const [label, entries] of publicationEntries) {
+      assert.equal(
+        manifestIncludesPath(relativePath, entries),
+        false,
+        `${relativePath} must stay out of the ${label} package`
+      );
+    }
   }
 });
