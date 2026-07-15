@@ -122,7 +122,7 @@ An explicit `format` takes precedence over detection and filename hints:
 await detect(uploadBytes, { format: "tar.br" });
 ```
 
-Forcing a format does not convert input bytes.
+Forcing a format selects a parser; it does not convert input bytes or guarantee that the result retains an equivalent alias spelling.
 
 ## Shared read options
 
@@ -264,12 +264,12 @@ Resolves a format without enumerating entries.
 
 ```js
 const result = await detect("./artifact.tar.gz");
-console.log(result.format); // "tgz" with current read-side filename inference
+console.log(result.format); // "tgz"
 ```
 
 `DetectResult` contains `format` and optional bytefold `detection` metadata.
 
-Current read-side filename inference maps both `.tgz` and `.tar.gz` to `tgz`. An explicit `format: "tar.gz"` preserves `tar.gz`. `write()` destination inference uses `tar.gz` for both suffixes. The identifiers describe the same format family.
+Current read operations canonicalize gzip-compressed TAR to `tgz`, whether the input uses `.tgz`, `.tar.gz`, magic-byte detection, or an explicit `format: "tar.gz"`. `write()` destination inference uses `tar.gz` for both filename suffixes, while an explicit writer request can report either alias. Treat `tgz` and `tar.gz` as equivalent rather than relying on alias spelling.
 
 Brotli input requires `filename` or `format` when the input supplies no usable filename.
 
@@ -370,11 +370,23 @@ const result = await normalize("./incoming.zip", "./staging/normalized.zip", {
 });
 ```
 
-`deterministic` defaults to `true`. Normalization preserves the opened source format; the destination extension does not convert formats.
+`deterministic` defaults to `true`. `NormalizeResult.format` reports the opened source format; it does not describe a conversion selected by the destination filename.
+
+Current output behavior:
+
+| Input reader | Output bytes |
+| --- | --- |
+| ZIP | normalized ZIP |
+| TAR | normalized TAR |
+| `tgz` / `tar.gz` | normalized inner TAR, without gzip reapplied |
+| `tar.bz2`, `tar.zst`, `tar.br`, `tar.xz` | normalized inner TAR, without compression reapplied |
+| bare `gz`, `bz2`, `zst`, `br`, `xz` | normalization unsupported |
+
+For a layered-TAR input, use a `.tar` destination unless the application performs a separate recompression step. The result can still report the source reader format, such as `tgz`, because that field identifies the input format.
 
 Use a destination different from the input. The destination is opened before normalization finishes, so a failure can leave a partial file. Normalize to a temporary sibling and publish it only after success.
 
-Bare `gz`, `bz2`, `xz`, `zst`, and `br` inputs do not support normalization in the current Node.js/Bun matrix. Deno has additional codec restrictions. Missing reader support causes `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+Deno has additional codec restrictions while opening layered inputs. Missing reader support causes `DIRARCHIVER_NORMALIZE_UNSUPPORTED`; other capability failures can surface as dependency errors.
 
 ## open
 
