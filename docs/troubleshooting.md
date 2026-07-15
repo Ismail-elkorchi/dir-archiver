@@ -13,8 +13,9 @@ Start with the operation, runtime, format, process exit code, and error type. Us
 | `DIRARCHIVER_RESOURCE_LIMIT` | A materialized entry or total output exceeded explicit extraction limits | Inspect the archive and resource budget before raising limits. |
 | `DIRARCHIVER_UNSUPPORTED_ENTRY` | Audit policy, an entry type, hard link, or a known writer capability was rejected | Run `audit()` and `list()`, then inspect the input and selected format. |
 | `DIRARCHIVER_NORMALIZE_UNSUPPORTED` | The opened reader has no normalization operation | Check [Formats](formats.md) or skip normalization. |
+| Layered-TAR normalization produced an uncompressed TAR | The current reader normalizes the inner TAR and does not reapply compression | Use a `.tar` destination or add a separate recompression step. |
 | Deno fails on Zstandard or Brotli | Those operations are capability-gated in the current Deno adapter | Choose another format or use Node.js/Bun for that workflow. |
-| `write()` reports `tar.gz`, while read detection reports `tgz` | Write inference and read inference use different aliases for the same format family | Treat them as equivalent or force `format`. |
+| `write()` reports `tar.gz`, while read operations report `tgz` | Write and read paths use different aliases for the same format family | Treat the aliases as equivalent in application logic. |
 | The archive contains itself | The destination was created inside the source directory | Move the destination outside the source tree. |
 | A previous archive disappeared after a failed write | The destination was replaced before all source files were added | Write to a temporary sibling and publish only after success. |
 | Empty directories disappeared | The directory writer emits file entries | Add a marker file or use a lower-level writer when empty directories matter. |
@@ -195,16 +196,16 @@ Matching is case-insensitive on Windows and case-sensitive on other supported pl
 npx dir-archiver detect --input ./artifact --json
 ```
 
-For a generic filename or in-memory input, supply a hint or force the format:
+For a generic filename or in-memory input, supply a hint or force the parser:
 
 ```js
 await detect(bytes, { filename: "artifact.tar.br" });
 await detect(bytes, { format: "tar.br" });
 ```
 
-A forced format must match the bytes; it does not convert them.
+A forced format must match the bytes; it does not convert them or guarantee an equivalent alias spelling.
 
-Current read-side filename inference reports `tgz` for both `.tgz` and `.tar.gz`. `write()` destination inference reports `tar.gz` for both suffixes. The identifiers describe the same format family.
+Current read operations report `tgz` for gzip-compressed TAR regardless of whether the filename is `.tgz` or `.tar.gz`, or whether `tar.gz` is forced. `write()` destination inference reports `tar.gz` for both suffixes. Treat the identifiers as equivalent.
 
 ## Write format was rejected
 
@@ -251,18 +252,26 @@ After an extraction failure:
 
 Do not retry into the same partly populated path. See [Recommended extraction flow](safety.md#recommended-extraction-flow).
 
-## Normalization failed
+## Normalization failed or produced unexpected bytes
 
 Check that:
 
 - source and destination are different paths;
-- the source format supports normalization;
-- the runtime has the required codec capability;
+- the source reader supports normalization;
+- the runtime has the required codec capability to open the input;
 - the destination parent is writable;
-- partial output is removed after failure;
-- the destination extension describes the source format, because normalization does not convert formats.
+- partial output is removed after failure.
 
-Bare `gz`, `bz2`, `xz`, `zst`, and `br` inputs are not normalizable in the current Node.js/Bun matrix. See [Formats](formats.md#normalize-is-not-conversion).
+Choose the destination suffix from the actual output behavior:
+
+| Input | Destination to use |
+| --- | --- |
+| ZIP | `.zip` |
+| TAR | `.tar` |
+| layered TAR such as `.tar.gz`, `.tar.bz2`, `.tar.zst`, `.tar.br`, or `.tar.xz` | `.tar` |
+| bare compressed stream | unsupported |
+
+For layered TAR, `NormalizeResult.format` and CLI JSON can still report the input reader format, such as `tgz`, even though the output bytes are uncompressed TAR. See [Normalize is not conversion](formats.md#normalize-is-not-conversion).
 
 ## Diagnostic sequence
 
