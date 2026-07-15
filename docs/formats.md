@@ -1,36 +1,38 @@
 # Formats
 
-`dir-archiver` accepts these public format identifiers:
+`dir-archiver` accepts these public identifiers:
 
 ```txt
 zip, tar, tgz, tar.gz, gz, bz2, tar.bz2, zst, tar.zst, br, tar.br, xz, tar.xz
 ```
 
-The identifier being accepted by the API does not mean every operation is available for that format on every runtime. Read, write, and normalize capabilities come from the active bytefold runtime adapter.
+A valid identifier does not mean every operation is available on every runtime. Read, write, and normalization capabilities come from the active bytefold adapter.
 
-The tables below describe the current `@ismail-elkorchi/bytefold` `0.8.x` matrix used by `dir-archiver` `3.0.x`.
+The tables below describe the current `@ismail-elkorchi/bytefold` `0.8.x` behavior used by `dir-archiver` `3.0.x`.
 
-## Choose a common format
+## Choose a format
 
 | Goal | Starting choice |
 | --- | --- |
-| Exchange a directory with broad desktop and server tooling | `zip` |
-| Preserve a TAR container without compression | `tar` |
-| Use broadly available compressed TAR tooling | `tar.gz` |
+| Exchange a directory with broad tooling support | `zip` |
+| Store a TAR container without compression | `tar` |
+| Create a broadly supported compressed TAR | `tar.gz` |
 | Compress one file on Node.js or Bun | `gz`, `zst`, or `br` |
-| Normalize a container archive | `zip`, `tar`, or a supported `tar.*` format |
+| Produce deterministic normalized output without changing container family | `zip` or `tar` |
 
-Check the runtime table before choosing Brotli, Zstandard, BZip2, or XZ.
+Check the runtime matrix before choosing Brotli, Zstandard, BZip2, or XZ.
 
-## Aliases and inference
+## `tgz` and `tar.gz`
 
-`tgz` and `tar.gz` describe the same gzip-compressed TAR family, but the identifier reported by an operation depends on how the format was selected.
+`tgz` and `tar.gz` identify the same gzip-compressed TAR family, but write and read operations report aliases differently.
 
-`write()` destination inference maps both `.tgz` and `.tar.gz` to `tar.gz`:
+### Write behavior
+
+Destination inference maps both suffixes to `tar.gz`:
 
 ```js
 const result = await write("./project", "./project.tgz");
-console.log(result.format); // tar.gz
+console.log(result.format); // "tar.gz"
 ```
 
 An explicit writer request retains the requested alias:
@@ -39,28 +41,24 @@ An explicit writer request retains the requested alias:
 const result = await write("./project", "./project.bundle", {
   format: "tgz",
 });
-console.log(result.format); // tgz
+console.log(result.format); // "tgz"
 ```
 
-Read-side filename detection in bytefold `0.8.x` maps both `.tgz` and `.tar.gz` to `tgz`:
+### Read behavior
+
+Current read operations canonicalize gzip-compressed TAR to `tgz`:
 
 ```js
-const result = await detect("./project.tar.gz");
-console.log(result.format); // tgz
+console.log((await detect("./project.tgz")).format); // "tgz"
+console.log((await detect("./project.tar.gz")).format); // "tgz"
+console.log((await detect("./project.tar.gz", { format: "tar.gz" })).format); // "tgz"
 ```
 
-An explicit read format is preserved:
+The explicit format selects the parser but does not preserve the alias in the result. Treat `tgz` and `tar.gz` as equivalent in application logic.
 
-```js
-const result = await detect("./project.tar.gz", {
-  format: "tar.gz",
-});
-console.log(result.format); // tar.gz
-```
+## Write inference
 
-Treat `tgz` and `tar.gz` as equivalent aliases unless your application intentionally preserves the exact requested identifier.
-
-`write()` checks compound extensions before shorter ones:
+`write()` checks compound suffixes before shorter ones:
 
 | Destination suffix | Inferred write format |
 | --- | --- |
@@ -69,77 +67,75 @@ Treat `tgz` and `tar.gz` as equivalent aliases unless your application intention
 | `.tgz` | `tar.gz` |
 | `.tar.gz` | `tar.gz` |
 | `.gz` | `gz` |
-| `.bz2` | `bz2` |
 | `.tar.bz2` | `tar.bz2` |
-| `.zst` | `zst` |
+| `.bz2` | `bz2` |
 | `.tar.zst` | `tar.zst` |
-| `.br` | `br` |
+| `.zst` | `zst` |
 | `.tar.br` | `tar.br` |
-| `.xz` | `xz` |
+| `.br` | `br` |
 | `.tar.xz` | `tar.xz` |
-| unrecognized or missing extension | `zip` |
+| `.xz` | `xz` |
+| unrecognized or missing suffix | `zip` |
 
-Use `format` when the filename is intentionally generic:
+Use `format` when the destination name is generic:
 
 ```js
-await write("./project", "./artifact", {
-  format: "zip",
-});
+await write("./project", "./artifact", { format: "zip" });
 ```
 
 The CLI equivalent is `--format`.
 
 ## Node.js and Bun
 
-Node.js and Bun currently share the same bytefold support matrix.
+Node.js and Bun currently share the same bytefold capability matrix.
 
-| Format | Detect, list, audit, extract | Write | Normalize | Notes |
-| --- | --- | --- | --- | --- |
-| `zip` | supported | supported | supported | Recommended general-purpose default. |
-| `tar` | supported | supported | supported | No compression. |
-| `tgz`, `tar.gz` | supported | supported | supported | Equivalent format family. |
-| `gz` | supported | supported for a file source | unsupported | A directory request maps to `tar.gz`. |
-| `bz2` | supported | unsupported | unsupported | A directory request maps to `tar.bz2`, which is also not writable. |
-| `tar.bz2` | supported | unsupported | supported | Read and normalize only. |
-| `zst` | supported | supported for a file source | unsupported | A directory request maps to `tar.zst`. |
-| `tar.zst` | supported | supported | supported | Requires active Zstandard capability. |
-| `br` | filename or explicit format hint required | supported for a file source | unsupported | A directory request maps to `tar.br`. |
-| `tar.br` | filename or explicit format hint required | supported | supported | Requires active Brotli capability. |
-| `xz` | supported | unsupported | unsupported | A directory request maps to `tar.xz`, which is also not writable. |
-| `tar.xz` | supported | unsupported | supported | Read and normalize only. |
+| Format | Read, list, audit, extract | Write | Normalization output |
+| --- | --- | --- | --- |
+| `zip` | supported | supported | normalized ZIP |
+| `tar` | supported | supported | normalized TAR |
+| `tgz`, `tar.gz` | supported; read result is `tgz` | supported | normalized inner TAR, no gzip |
+| `gz` | supported | one file | unsupported |
+| `bz2` | supported | unsupported | unsupported |
+| `tar.bz2` | supported | unsupported | normalized inner TAR, no BZip2 |
+| `zst` | supported | one file | unsupported |
+| `tar.zst` | supported | supported | normalized inner TAR, no Zstandard |
+| `br` | filename or explicit format hint required | one file | unsupported |
+| `tar.br` | filename or explicit format hint required | supported | normalized inner TAR, no Brotli |
+| `xz` | supported | unsupported | unsupported |
+| `tar.xz` | supported | unsupported | normalized inner TAR, no XZ |
 
-The Node.js CLI uses this matrix because the CLI executable runs on Node.js.
+The Node.js CLI uses this matrix because the executable runs on Node.js.
 
 ## Deno
 
-Deno currently supports the same ZIP, TAR, gzip, BZip2, and XZ read surface, but Zstandard and Brotli operations are capability-gated by the Deno adapter.
+Deno supports the ZIP, TAR, gzip, BZip2, and XZ read surface. Zstandard and Brotli operations are capability-gated by the current Deno adapter.
 
-| Format | Detect, list, audit, extract | Write | Normalize | Notes |
-| --- | --- | --- | --- | --- |
-| `zip` | supported | supported | supported | |
-| `tar` | supported | supported | supported | |
-| `tgz`, `tar.gz` | supported | supported | supported | |
-| `gz` | supported | supported for a file source | unsupported | A directory request maps to `tar.gz`. |
-| `bz2` | supported | unsupported | unsupported | |
-| `tar.bz2` | supported | unsupported | supported | |
-| `xz` | supported | unsupported | unsupported | |
-| `tar.xz` | supported | unsupported | supported | |
-| `zst`, `tar.zst` | capability-gated | capability-gated | capability-gated | Do not assume availability in the current Deno adapter. |
-| `br`, `tar.br` | capability-gated | capability-gated | capability-gated | Do not assume availability in the current Deno adapter. |
+| Format | Read, list, audit, extract | Write | Normalization output |
+| --- | --- | --- | --- |
+| `zip` | supported | supported | normalized ZIP |
+| `tar` | supported | supported | normalized TAR |
+| `tgz`, `tar.gz` | supported; read result is `tgz` | supported | normalized inner TAR, no gzip |
+| `gz` | supported | one file | unsupported |
+| `bz2` | supported | unsupported | unsupported |
+| `tar.bz2` | supported | unsupported | normalized inner TAR, no BZip2 |
+| `xz` | supported | unsupported | unsupported |
+| `tar.xz` | supported | unsupported | normalized inner TAR, no XZ |
+| `zst`, `tar.zst` | capability-gated | capability-gated | capability-gated; layered success writes TAR |
+| `br`, `tar.br` | capability-gated | capability-gated | capability-gated; layered success writes TAR |
 
-A capability-gated operation can fail even though the format name is valid. For portable Deno workflows, prefer ZIP, TAR, or gzip-compressed TAR unless the application has tested the required codec in its target Deno environment.
+For portable Deno workflows, prefer ZIP, TAR, or gzip-compressed TAR unless the target environment has been tested with the required codec.
 
-## Directory sources and single-file codecs
+## Directory sources and bare codecs
 
-A bare compression codec represents one byte stream, not a directory tree. For directory sources, `write()` maps the request before creating the writer:
+A bare compression codec represents one byte stream, not a directory tree. For a directory source, `write()` maps the request before writer capability is checked:
 
 | Requested format | Mapped directory format | Node.js/Bun | Deno |
 | --- | --- | --- | --- |
 | `gz` | `tar.gz` | succeeds | succeeds |
-| `zst` | `tar.zst` | succeeds when Zstandard capability is present | capability-gated |
-| `br` | `tar.br` | succeeds when Brotli capability is present | capability-gated |
-| `bz2` | `tar.bz2` | rejected by the current writer | rejected by the current writer |
-| `xz` | `tar.xz` | rejected by the current writer | rejected by the current writer |
+| `zst` | `tar.zst` | succeeds | capability-gated |
+| `br` | `tar.br` | succeeds | capability-gated |
+| `bz2` | `tar.bz2` | rejected | rejected |
+| `xz` | `tar.xz` | rejected | rejected |
 
 When mapping succeeds, `WriteResult.wrappedDirectoryCodec` is `true` and `WriteResult.format` is the mapped format.
 
@@ -148,51 +144,57 @@ const result = await write("./project", "./project.gz", {
   format: "gz",
 });
 
-console.log(result.format); // tar.gz
+console.log(result.format); // "tar.gz"
 console.log(result.wrappedDirectoryCodec); // true
 ```
 
-The filename is not rewritten. In this example the bytes are `tar.gz` even though the destination was named `project.gz`. Prefer a destination such as `project.tar.gz` so external tools receive an accurate extension.
+The filename is not rewritten. In this example the bytes are gzip-compressed TAR even though the filename is `project.gz`. Prefer `project.tar.gz` so other tools receive an accurate suffix.
 
 ## Detection hints
 
-Local paths and URLs normally provide a filename hint. Bytes, streams, and blobs do not.
+Local paths and URLs normally supply a filename. Bytes, streams, and blobs do not.
 
-Brotli input requires a filename or explicit format hint because byte inspection does not reliably distinguish `br` from `tar.br`:
-
-```js
-await list(bytes, {
-  filename: "upload.tar.br",
-});
-```
+Brotli input requires a filename or explicit format because byte inspection cannot reliably distinguish `br` from `tar.br`:
 
 ```js
-await list(bytes, {
-  format: "tar.br",
-});
+await list(bytes, { filename: "upload.tar.br" });
+await list(bytes, { format: "tar.br" });
 ```
 
-Forcing the wrong format can produce a parse or decompression error; it does not convert the input.
+Forcing the wrong format produces a parse or decompression error; it does not convert input.
 
 ## Normalize is not conversion
 
-`normalize(input, destination)` writes the same format opened from `input`. The destination extension does not select a new format.
+`normalize(input, destination)` delegates to the opened reader. The destination suffix does not select an output format.
+
+Current behavior:
+
+- ZIP input writes normalized ZIP.
+- TAR input writes normalized TAR.
+- Layered TAR input writes the normalized inner TAR and does not reapply compression.
+- Bare compressed-stream input does not expose normalization.
+
+For layered input, use a `.tar` destination:
 
 ```js
-await normalize("./incoming.zip", "./normalized.zip"); // ZIP to ZIP
+const result = await normalize(
+  "./incoming.tar.gz",
+  "./normalized.tar",
+  { deterministic: true },
+);
+
+console.log(result.format); // "tgz": identifies the input reader
 ```
 
-To create a different format, extract to a controlled staging directory and call `write()` with the desired format. That is a separate, non-atomic workflow and needs the same extraction safety controls described in [Safety](safety.md).
+The result's `format` field identifies the opened source reader, not the emitted byte format. Recompression is a separate workflow: normalize to TAR, then archive that TAR or a controlled directory using the desired writer.
 
-Bare single-file formats are not normalizable in the current Node.js/Bun matrix. TAR-based layered formats can be normalizable even when the current writer does not support creating that compression format from scratch, as with `tar.bz2` and `tar.xz`.
+Use a destination different from the input. Normalization can leave a partial destination after failure.
 
 ## Unsupported-operation errors
 
-The public API validates format names at the type or CLI-parser level, but runtime capability checks happen later.
-
-- `write()` maps its known unsupported BZip2/XZ writer cases to `DIRARCHIVER_UNSUPPORTED_ENTRY`.
-- `normalize()` maps absence of reader normalization support to `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
-- Other codec capability failures can surface as dependency errors rather than a `DirArchiverError`.
+- Known BZip2 and XZ writer restrictions are mapped by `write()` to `DIRARCHIVER_UNSUPPORTED_ENTRY`.
+- A reader without normalization support causes `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+- Runtime codec failures can surface as dependency errors rather than `DirArchiverError`.
 
 Handle both package errors and other operational errors. See [Troubleshooting](troubleshooting.md).
 
