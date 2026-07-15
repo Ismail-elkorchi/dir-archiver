@@ -102,7 +102,7 @@ For automation, pass `--json`, keep stdout and stderr separate, and inspect both
 
 - `write()` replaces an existing destination archive, reads each source file into memory before adding it, and can leave a partial destination if a later read or writer operation fails.
 - Keep a write destination outside the source tree. An output created inside the source can be discovered during traversal and included in itself.
-- `followSymlinks: true` follows target content and may cross outside the source tree. Use it only for a trusted source layout.
+- `followSymlinks: true` follows links encountered during directory traversal and may include content outside the source tree. Use it only for a trusted source layout.
 - `extract()` creates the destination, overwrites matching files, and is not transactional. A failure can leave earlier entries on disk.
 - Extract into a new directory under a trusted parent. Do not extract through pre-existing symlinked path components.
 - Strict extraction performs a pre-extraction audit automatically. A separate `audit()` call is useful when the application needs the report before deciding whether to extract.
