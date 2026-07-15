@@ -1,6 +1,6 @@
 # API guide
 
-This page is the canonical guide for the programmatic `dir-archiver` surface.
+This page is the canonical reference for the programmatic `dir-archiver` surface.
 
 ## Install and import
 
@@ -44,9 +44,9 @@ import {
 } from "@ismail-elkorchi/dir-archiver";
 ```
 
-`deno add` records the JSR package in the project import map. A direct `jsr:@ismail-elkorchi/dir-archiver` import is also valid without an import-map entry.
+`deno add` records the JSR package in the project import map. A direct `jsr:@ismail-elkorchi/dir-archiver` import also works without an import-map entry.
 
-A default namespace export mirrors the named operation exports:
+The package is ESM-only. The default export mirrors the named operations:
 
 ```js
 import dirArchiver from "dir-archiver";
@@ -54,13 +54,36 @@ import dirArchiver from "dir-archiver";
 await dirArchiver.write("./project", "./project.zip");
 ```
 
-The package is ESM-only.
+## Public exports
 
-## Exported types and dependency-owned results
+Runtime values:
 
-`dir-archiver` exports its option and wrapper-result types, including `OpenOptions`, `ExtractOptions`, `WriteOptions`, `DetectResult`, `ListResult`, `ExtractResult`, `NormalizeResult`, `ArchiveFormat`, `ArchiveProfile`, and `DirArchiverErrorCode`.
+```txt
+open, detect, list, audit, extract, normalize, write, DirArchiverError, default
+```
 
-The return types of `open()` and `audit()` are owned by bytefold and are not re-exported as named `dir-archiver` types. Let TypeScript infer them, or create a local alias:
+Type exports:
+
+| Type | Purpose |
+| --- | --- |
+| `ArchiveFormat` | Public format identifier union. |
+| `ArchiveProfile` | `compat`, `strict`, or `agent`. |
+| `ArchiveLimits` | Reader, parser, decompression, and audit limits. |
+| `ArchiveDetectionReport` | Publicly exposed detection-report shape. |
+| `ArchiveIssue` | Publicly exposed report-issue shape. |
+| `ArchiveNormalizeReport` | Publicly exposed normalization-report shape. |
+| `DirArchiverInput` | Accepted read-input union. |
+| `OpenOptions` | Shared read options. |
+| `DetectResult` | `detect()` result. |
+| `ListEntry`, `ListResult` | Entry summary and `list()` result. |
+| `ExtractOptions`, `ExtractResult` | Extraction options and result. |
+| `NormalizeOptions`, `NormalizeResult` | Normalization options and result. |
+| `WriteOptions`, `WriteResult` | Writer options and result. |
+| `DirArchiverErrorCode`, `DirArchiverErrorJson` | Package error code and JSON envelope. |
+| `CliUsageError`, `SupportedCommandMap` | CLI contract types. |
+| `DirArchiverNamespace` | Default-export type. |
+
+The return types of `open()` and `audit()` are owned by bytefold and are not re-exported as named reader or audit-report types. Let TypeScript infer them, or define local aliases:
 
 ```ts
 import { audit, open } from "dir-archiver";
@@ -69,11 +92,11 @@ type OpenedArchive = Awaited<ReturnType<typeof open>>;
 type AuditReport = Awaited<ReturnType<typeof audit>>;
 ```
 
-Dependency-owned detection, audit, and normalization payloads carry their own `schemaVersion`. Do not assume every nested field is part of the wrapper's stable result contract.
+Bytefold-owned detection, audit, and normalization payloads carry their own `schemaVersion`. Do not treat every nested field as part of the wrapper's stable result contract.
 
 ## Inputs
 
-Read operations accept these public input shapes:
+Read operations accept:
 
 ```ts
 type DirArchiverInput =
@@ -85,72 +108,64 @@ type DirArchiverInput =
   | Blob;
 ```
 
-A string can be a local path or an HTTP or HTTPS URL. A `URL` can be a file URL or network URL when the active runtime adapter supports it. Network inputs require the runtime's network permission and can fail with network-specific errors.
+A string can be a local path or an HTTP or HTTPS URL. A `URL` can identify a local file or network resource when supported by the active runtime adapter. Runtime permissions, network failures, redirects, and cancellation remain the caller's responsibility.
 
-For bytes, a stream, or a `Blob`, pass a filename hint when the format cannot be determined from magic bytes alone:
-
-```js
-const result = await detect(uploadBytes, {
-  filename: "upload.tar.br",
-});
-```
-
-An explicit `format` is stronger than a filename hint:
+For bytes, streams, and blobs, supply `filename` when extension information is needed:
 
 ```js
-const result = await detect(uploadBytes, {
-  format: "tar.br",
-});
+await detect(uploadBytes, { filename: "upload.tar.br" });
 ```
+
+An explicit `format` takes precedence over detection and filename hints:
+
+```js
+await detect(uploadBytes, { format: "tar.br" });
+```
+
+Forcing a format does not convert input bytes.
 
 ## Shared read options
 
-`open()`, `detect()`, `list()`, `audit()`, `extract()`, and `normalize()` accept `OpenOptions`. Extraction and normalization add their own fields.
+`open()`, `detect()`, `list()`, `audit()`, `extract()`, and `normalize()` accept `OpenOptions`.
 
 | Option | Current default | Meaning |
 | --- | --- | --- |
-| `format` | `"auto"` | Force an archive format instead of detecting it. |
-| `filename` | unset | Supply an extension hint for bytes, streams, blobs, or URLs. |
-| `profile` | `"strict"` in current readers | Select `compat`, `strict`, or `agent` policy defaults. |
-| `isStrict` | profile-driven | Override parser strictness. This is an advanced bytefold control, not a replacement for the profile. |
-| `limits` | profile-driven limits | Set parser, decompression, entry, or audit ceilings. |
-| `signal` | unset | Cancel supported read, audit, or normalization work. |
-| `password` | unset | Supply a password for encrypted ZIP members where supported. |
+| `format` | `"auto"` | Force a format or allow detection. |
+| `filename` | unset | Supply an extension hint. |
+| `profile` | current reader default is `strict` | Select `compat`, `strict`, or `agent` defaults. |
+| `isStrict` | profile-driven | Advanced parser-strictness override. |
+| `limits` | profile-driven | Reader, decompression, entry, and audit ceilings. |
+| `signal` | unset | Cancel supported work. |
+| `password` | unset | Password for encrypted ZIP members where supported. |
 
-Common fields accepted inside `limits` by the current bytefold `0.8.x` dependency include:
+Current bytefold `0.8.x` limit fields include:
 
-| Limit | Purpose |
-| --- | --- |
-| `maxInputBytes` | Maximum raw bytes read from the source. |
-| `maxEntries` | Maximum archive entries processed. |
-| `maxUncompressedEntryBytes` | Maximum declared or observed uncompressed bytes for one entry. |
-| `maxTotalUncompressedBytes` | Maximum uncompressed bytes across entries. |
-| `maxTotalDecompressedBytes` | Maximum bytes produced by a decompression pipeline. |
-| `maxCompressionRatio` | Maximum accepted expansion ratio. |
-| `maxDictionaryBytes` | Generic codec dictionary ceiling. |
-| `maxXzDictionaryBytes` | XZ dictionary ceiling. |
-| `maxXzBufferedBytes` | XZ buffered-input ceiling. |
-| `maxXzIndexRecords` | Maximum XZ index records. |
-| `maxXzIndexBytes` | Maximum XZ index bytes. |
-| `maxXzPreflightBlockHeaders` | Maximum XZ block headers scanned during preflight. |
-| `maxZipCentralDirectoryBytes` | Maximum ZIP central-directory bytes. |
-| `maxZipCommentBytes` | Maximum ZIP comment bytes. |
-| `maxZipEocdSearchBytes` | Maximum bytes searched for ZIP end-of-central-directory data. |
-| `maxBzip2BlockSize` | Maximum accepted BZip2 block-size level. |
+```txt
+maxInputBytes
+maxEntries
+maxUncompressedEntryBytes
+maxTotalUncompressedBytes
+maxTotalDecompressedBytes
+maxCompressionRatio
+maxDictionaryBytes
+maxXzDictionaryBytes
+maxXzBufferedBytes
+maxXzIndexRecords
+maxXzIndexBytes
+maxXzPreflightBlockHeaders
+maxZipCentralDirectoryBytes
+maxZipCommentBytes
+maxZipEocdSearchBytes
+maxBzip2BlockSize
+```
 
-These reader limits differ from `ExtractOptions.maxEntryBytes` and `maxTotalExtractedBytes`, which are enforced by `dir-archiver` while materializing files.
+These reader limits are distinct from `ExtractOptions.maxEntryBytes` and `maxTotalExtractedBytes`, which `dir-archiver` enforces while materializing regular files.
 
 ## write
 
 ```ts
-write(
-  source: string,
-  destination: string,
-  options?: WriteOptions,
-): Promise<WriteResult>
+write(source: string, destination: string, options?: WriteOptions): Promise<WriteResult>
 ```
-
-Creates an archive from one local file or a local directory.
 
 ```js
 const result = await write("./project", "./artifacts/project.zip", {
@@ -158,49 +173,35 @@ const result = await write("./project", "./artifacts/project.zip", {
   includeBaseDirectory: true,
   exclude: ["node_modules", ".git", "build/debug.log"],
 });
-
-console.log(result);
 ```
 
-`WriteResult` contains:
-
-| Field | Meaning |
-| --- | --- |
-| `format` | Format passed to the active writer after any directory wrapping. |
-| `source` | Absolute source path. |
-| `destination` | Absolute output path. |
-| `entryCount` | Number of file entries written. |
-| `wrappedDirectoryCodec` | Whether a requested single-file codec was converted to a TAR-based format for a directory source. |
+`WriteResult` contains `format`, absolute `source`, absolute `destination`, `entryCount`, and `wrappedDirectoryCodec`.
 
 ### Write options
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `format` | inferred from destination, then `zip` | Force the output format. |
-| `includeBaseDirectory` | `false` | Prefix archived paths with the source directory name. |
-| `followSymlinks` | `false` | Follow symlink targets while walking a directory. |
+| `format` | inferred, then `zip` | Force the output format. |
+| `includeBaseDirectory` | `false` | Prefix directory entries with the source directory name. |
+| `followSymlinks` | `false` | Follow links found while walking a directory source. |
 | `exclude` | `[]` | Skip matching basenames or exact source-relative paths. |
-| `profile` | reserved | Present in the public type but not forwarded by `write()` in v3. |
-| `limits` | reserved | Present in the public type but not forwarded by `write()` in v3. |
+| `profile` | reserved | Present in the type but not forwarded in v3. |
+| `limits` | reserved | Present in the type but not forwarded in v3. |
+
+For one regular-file source, the archive path is the source basename. `includeBaseDirectory`, `exclude`, and `followSymlinks` affect directory traversal and do not filter or rename that single file.
+
+`followSymlinks` controls links discovered while walking a directory. It does not provide a containment guarantee for a top-level source path; avoid a top-level symlink when source-root containment matters.
 
 ### Include the source directory
 
-Given this source:
-
-```txt
-project/
-  package.json
-  src/index.js
-```
-
-`includeBaseDirectory: true` writes:
+Given `project/package.json` and `project/src/index.js`, `includeBaseDirectory: true` writes:
 
 ```txt
 project/package.json
 project/src/index.js
 ```
 
-The default `false` writes:
+The default writes:
 
 ```txt
 package.json
@@ -209,50 +210,49 @@ src/index.js
 
 ### Exclude source paths
 
-A value without a path separator is a basename match anywhere below the source root. A value containing a separator is an exact path relative to the source root.
+A value without a path separator matches that basename anywhere below the source root. A value with a separator matches one exact source-relative path.
 
 ```js
 await write("./project", "./artifacts/project.zip", {
   exclude: [
-    "node_modules",    // every entry whose basename is node_modules
-    ".git",            // every entry whose basename is .git
-    "build/debug.log", // exactly this source-relative path
+    "node_modules",
+    ".git",
+    "build/debug.log",
   ],
 });
 ```
 
-Exclusions are not glob patterns. `"*.log"` does not match every log file. On Windows, matching is case-insensitive.
+Exclusions are not globs. `"*.log"` and `"build/**"` do not expand. Matching is case-insensitive on Windows.
 
-An absolute exclusion is converted to a source-relative match only when it points inside the source tree. An absolute path equal to the source root or outside it has no effect because archive traversal supplies relative paths to the matcher.
+An absolute exclusion is converted to a relative match only when it resolves inside the source tree. An absolute path equal to the source root or outside it does not match relative traversal paths.
 
-### Write behavior to plan for
+### Write side effects
 
 - The destination parent is created when needed.
-- The destination is opened and an existing file is replaced before every source file has been read and added.
-- A later source or writer failure can leave a partial destination and can destroy the previous archive at that path.
-- Keep the destination outside the source tree; otherwise the newly opened output can be encountered during traversal.
+- The destination is opened before every source file has been processed.
+- An existing destination can be replaced before a later failure.
+- A failure can leave a partial destination.
 - Each source file is read fully into memory before it is added.
-- Only file entries are written. Empty directories are not preserved.
-- Source mode, ownership, and modification-time metadata are not preserved by the directory wrapper.
-- Symlinks are skipped by default.
-- With `followSymlinks: true`, target files are stored as regular files and symlinked directories are traversed. Targets can be outside the source root, so enable this only for a trusted source layout.
-- Traversal and archive entry ordering are deterministic and lexicographic, but byte-identical output also depends on the selected writer and format.
+- Empty source directories and source filesystem metadata are not preserved.
+- Links encountered during a directory walk are skipped by default.
+- With `followSymlinks: true`, linked content can come from outside the source root.
+- Traversal and emitted paths are lexicographically ordered, but byte-identical output also depends on the writer, codec, runtime, and dependency version.
 
-For publication workflows, write to a temporary sibling and rename it only after success. See [A write replaced the previous destination before failing](troubleshooting.md#a-write-replaced-the-previous-destination-before-failing).
+Keep the destination outside the source tree. For publication, write to a temporary sibling and rename only after success. See [A write replaced the previous destination before failing](troubleshooting.md#a-write-replaced-the-previous-destination-before-failing).
 
 ### Directory codecs
 
-A directory cannot be represented by a bare single-file codec. `write()` maps the request to a TAR-based format before asking the runtime writer:
+Directory requests for bare codecs are mapped before writer capability is checked:
 
 | Request | Mapped format | Current result |
 | --- | --- | --- |
 | `gz` | `tar.gz` | Supported on Node.js, Bun, and Deno. |
 | `zst` | `tar.zst` | Supported on Node.js and Bun; capability-gated on Deno. |
 | `br` | `tar.br` | Supported on Node.js and Bun; capability-gated on Deno. |
-| `bz2` | `tar.bz2` | Mapping occurs, then the current writer rejects the format. |
-| `xz` | `tar.xz` | Mapping occurs, then the current writer rejects the format. |
+| `bz2` | `tar.bz2` | Mapped, then rejected by the current writer. |
+| `xz` | `tar.xz` | Mapped, then rejected by the current writer. |
 
-See [Formats](formats.md) for the complete matrix.
+The filename is not rewritten after mapping. Use an extension that describes the emitted format. See [Formats](formats.md).
 
 ## detect
 
@@ -260,19 +260,18 @@ See [Formats](formats.md) for the complete matrix.
 detect(input: DirArchiverInput, options?: OpenOptions): Promise<DetectResult>
 ```
 
-Resolves the format without enumerating entries.
+Resolves a format without enumerating entries.
 
 ```js
 const result = await detect("./artifact.tar.gz");
-console.log(result.format); // tgz with bytefold 0.8.x filename inference
-console.log(result.detection);
+console.log(result.format); // "tgz" with current read-side filename inference
 ```
 
-`DetectResult.format` is the resolved public format. `detection` is the bytefold report describing input kind, detected layers, confidence, and notes.
+`DetectResult` contains `format` and optional bytefold `detection` metadata.
 
-For gzip-compressed TAR, read-side filename inference maps both `.tgz` and `.tar.gz` to `tgz`. An explicit `format: "tar.gz"` preserves `tar.gz`. This differs from `write()` destination inference, which reports `tar.gz` for both suffixes. The two identifiers are aliases for the same format family.
+Current read-side filename inference maps both `.tgz` and `.tar.gz` to `tgz`. An explicit `format: "tar.gz"` preserves `tar.gz`. `write()` destination inference uses `tar.gz` for both suffixes. The identifiers describe the same format family.
 
-Brotli (`br` and `tar.br`) requires `filename` or `format` when the input has no usable filename.
+Brotli input requires `filename` or `format` when the input supplies no usable filename.
 
 ## list
 
@@ -280,35 +279,17 @@ Brotli (`br` and `tar.br`) requires `filename` or `format` when the input has no
 list(input: DirArchiverInput, options?: OpenOptions): Promise<ListResult>
 ```
 
-Returns JSON-safe entry summaries without writing files.
-
 ```js
 const result = await list("./artifact.zip");
 
 for (const entry of result.entries) {
-  console.log({
-    name: entry.name,
-    size: entry.size,
-    isDirectory: entry.isDirectory,
-    isSymlink: entry.isSymlink,
-    linkName: entry.linkName,
-  });
+  console.log(entry.name, entry.size, entry.isSymlink);
 }
 ```
 
-Each `size` is a decimal string, not a JavaScript number, so large integer values survive JSON serialization. Entry names use `/` separators.
-
-`list()` describes entries; it does not make an archive safe to extract. Use `audit()` for a report and strict `extract()` for enforcement.
+`ListEntry.size` is a decimal string so large integer values survive JSON serialization. Entry names use `/` separators. `list()` describes contents; it does not approve an archive for extraction.
 
 ## audit
-
-```ts
-audit(input: DirArchiverInput, options?: OpenOptions): Promise<AuditReport>
-```
-
-`AuditReport` above is descriptive shorthand for the inferred bytefold-owned return type; it is not a named export from `dir-archiver`.
-
-`audit()` returns a non-mutating report. A completed audit does not throw merely because the report contains error-severity issues; check `report.ok`.
 
 ```js
 const report = await audit("./incoming.zip", {
@@ -324,15 +305,15 @@ if (!report.ok) {
 }
 ```
 
-The report contains `schemaVersion`, `ok`, `summary`, and `issues`. Issue codes and nested report fields are produced by bytefold. Persist the report's `schemaVersion` when storing it for later machine processing.
+A completed audit returns a report even when it contains error-severity issues. Inspect `report.ok`. The report contains `schemaVersion`, `ok`, `summary`, and `issues`; nested issue fields are produced by bytefold.
 
-Profile differences that matter to audit:
+Current profile behavior:
 
-- `strict` uses strict parsing and default bytefold limits. Symlink presence is normally a warning.
-- `agent` uses strict parsing, tighter agent defaults, and treats symlink presence as an error in current bytefold behavior.
-- `compat` relaxes parser/audit strictness, but path containment and link policy still apply later in `extract()`.
+- `strict` uses strict parsing and default bytefold limits; symlink presence is normally a warning.
+- `agent` uses tighter limits and currently treats symlink presence as an error.
+- `compat` relaxes reader and audit policy, but wrapper path and link checks still apply if `extract()` is called later.
 
-Strict `extract()` already audits before writing archive entries. Call `audit()` separately when the application needs the report before deciding whether to extract.
+Strict `extract()` already audits before archive entries are written. Call `audit()` separately when the application needs the report before deciding whether to extract.
 
 ## extract
 
@@ -344,51 +325,33 @@ extract(
 ): Promise<ExtractResult>
 ```
 
-Extracts entries into a local destination directory.
-
 ```js
 const result = await extract("./incoming.zip", "./staging/extracted", {
   profile: "strict",
   maxEntryBytes: 64 * 1024 * 1024,
   maxTotalExtractedBytes: 512 * 1024 * 1024,
 });
-
-console.log(result);
 ```
-
-### Extract options
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `profile` | `strict` | Select pre-extraction audit and reader defaults. |
+| `profile` | `strict` | Reader defaults and pre-extraction audit policy. |
 | `allowSymlinks` | `false` | Materialize permitted symlink entries instead of skipping them. |
-| `allowHardlinks` | `false` | Reserved; hard links are rejected regardless of this value in v3. |
-| `maxEntryBytes` | unset | Maximum bytes read for one file entry during materialization. |
-| `maxTotalExtractedBytes` | unset | Maximum aggregate file bytes written by the operation. |
-| Shared read options | varies | Apply format hints, reader limits, cancellation, and passwords. |
+| `allowHardlinks` | `false` | Reserved; hard links are rejected in v3. |
+| `maxEntryBytes` | unset | Maximum bytes for one materialized regular file. |
+| `maxTotalExtractedBytes` | unset | Maximum aggregate materialized regular-file bytes. |
 
-`ExtractResult` contains the source `format`, absolute `destination`, counts for extracted files and directory entries, `skippedEntries`, and audit `issues` collected by the strict flow.
+`ExtractResult` contains `format`, absolute `destination`, completed file and directory-entry counts, `skippedEntries`, and audit issues collected by strict or agent extraction.
 
-### Profile enforcement
+Profile enforcement:
 
-- `strict` audits before entry writes and throws when the report is not safe.
-- `agent` invokes the reader's `assertSafe()` and then audits before entry writes. In current bytefold behavior, an archive containing symlinks fails the agent gate even when `allowSymlinks` is true.
-- `compat` skips the pre-extraction audit in `dir-archiver`. It does not disable lexical destination containment, absolute-path rejection, `..` rejection, hard-link rejection, the default symlink skip, or explicit extraction byte limits.
+- `strict` audits before archive entries are written and rejects an unsafe report.
+- `agent` calls `assertSafe()` and then audits. Current agent policy rejects symlink presence even when `allowSymlinks` is true.
+- `compat` skips the pre-extraction audit but retains lexical containment, link policy, and explicit materialization limits.
 
-### Extraction is not transactional
+Extraction is not transactional. The destination is created before the strict or agent audit, matching files are replaced, each regular file is buffered in memory, and a later failure can leave earlier output.
 
-The destination directory is created before the pre-extraction audit. Existing files with matching names are replaced. Each file is buffered in memory and then written. If a later entry fails, earlier directories and files remain.
-
-For untrusted input:
-
-1. choose a trusted parent directory;
-2. create a new staging directory beneath it;
-3. keep that staging path free of pre-existing symlinked components;
-4. extract with strict or agent policy and explicit limits;
-5. remove the staging directory on failure;
-6. rename or publish it only after success.
-
-See [Safety](safety.md#recommended-extraction-flow) for a complete pattern.
+For external input, use a new staging directory under a trusted parent, remove it after any failure, and publish it only after success. See [Safety](safety.md#recommended-extraction-flow).
 
 ## normalize
 
@@ -400,99 +363,78 @@ normalize(
 ): Promise<NormalizeResult>
 ```
 
-Rewrites a format through the active reader's deterministic normalization support.
-
 ```js
 const result = await normalize("./incoming.zip", "./staging/normalized.zip", {
   profile: "strict",
   deterministic: true,
 });
-
-console.log(result.report);
 ```
 
-`deterministic` defaults to `true`. Normalization keeps the opened source format; the destination extension does not convert ZIP to TAR or another format.
+`deterministic` defaults to `true`. Normalization preserves the opened source format; the destination extension does not convert formats.
 
-Use a destination different from the input. The destination is opened before normalization completes, so a failure can leave a partial file. A common pattern is to normalize to a temporary sibling and rename it after success.
+Use a destination different from the input. The destination is opened before normalization finishes, so a failure can leave a partial file. Normalize to a temporary sibling and publish it only after success.
 
-Bare single-file formats (`gz`, `bz2`, `xz`, `zst`, and `br`) do not support normalization in the current Node.js/Bun matrix. Deno has additional capability restrictions. Unsupported normalization throws `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
+Bare `gz`, `bz2`, `xz`, `zst`, and `br` inputs do not support normalization in the current Node.js/Bun matrix. Deno has additional codec restrictions. Missing reader support causes `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
 
 ## open
 
-```ts
-open(input: DirArchiverInput, options?: OpenOptions): Promise<OpenedArchive>
-```
+`open()` returns the lower-level bytefold reader. Prefer the higher-level operations unless direct entry streams or reader methods are required.
 
-`OpenedArchive` above is descriptive shorthand for the inferred bytefold-owned return type; it is not a named export from `dir-archiver`.
-
-Returns the lower-level bytefold reader used by the helper operations.
+Use in-memory input in portable examples because the public reader type has no cross-runtime lifecycle method:
 
 ```js
-const reader = await open("./artifact.zip", {
+const reader = await open(archiveBytes, {
+  filename: "artifact.zip",
   profile: "strict",
 });
 
+console.log(reader.format);
 for await (const entry of reader.entries()) {
   console.log(entry.name);
 }
-
-const report = await reader.audit({ profile: "strict" });
-if (!report.ok) {
-  console.error(report.issues);
-}
 ```
 
-The public reader contract exposes:
+The reader exposes `format`, optional `detection`, `entries()`, `audit()`, `assertSafe()`, and optional `normalizeToWritable()`.
 
-- `format`
-- optional `detection`
-- `entries()`
-- `audit()`
-- `assertSafe()`
-- optional `normalizeToWritable()`
+The public type does not define `close()` or `dispose()`. Do not call undocumented lifecycle hooks in cross-runtime code. `detect()`, `list()`, `audit()`, and `normalize()` manage their reader operation internally.
 
-The current public reader type does not define a portable `close()` or `dispose()` method. Do not call undocumented lifecycle methods in cross-runtime code. Prefer `detect()`, `list()`, `audit()`, and `normalize()` when their higher-level result is enough; those helpers manage the operation internally.
-
-Because `open()` exposes dependency-owned behavior directly, use it only when the higher-level operations cannot express the required flow. The CLI `open` command is different: it prints format and detection metadata, not a live reader.
+The CLI `open` command is different: it serializes format and detection metadata rather than exposing a reader object.
 
 ## Errors
 
-Known package-level policy failures use `DirArchiverError`:
+Known package-policy failures use `DirArchiverError`:
 
 ```js
 try {
   await extract("./incoming.zip", "./staging/out", {
     profile: "strict",
-    maxTotalExtractedBytes: 512 * 1024 * 1024,
   });
 } catch (error) {
   if (error instanceof DirArchiverError) {
     console.error(error.code, error.context);
   } else {
-    // Filesystem, network, cancellation, and dependency errors are not all
-    // converted into DirArchiverError.
+    // Filesystem, network, cancellation, parser, and codec failures are not
+    // all converted into DirArchiverError.
     throw error;
   }
 }
 ```
 
-Current stable package code names are:
+Stable package code names:
 
-| Code | Package-level meaning |
-| --- | --- |
-| `DIRARCHIVER_INVALID_SOURCE` | Reserved code for an invalid source. Some current filesystem failures still surface as native errors. |
-| `DIRARCHIVER_INVALID_DESTINATION` | Reserved code for an invalid destination. Some current filesystem failures still surface as native errors. |
-| `DIRARCHIVER_PATH_TRAVERSAL` | An archive entry or permitted symlink target failed destination containment checks. |
-| `DIRARCHIVER_UNSUPPORTED_ENTRY` | An audit, entry type, link, or writer capability is unsupported by the wrapper policy. |
-| `DIRARCHIVER_RESOURCE_LIMIT` | An explicit extraction byte ceiling was exceeded. |
-| `DIRARCHIVER_RUNTIME_UNSUPPORTED` | The active runtime adapter is unavailable. |
-| `DIRARCHIVER_NORMALIZE_UNSUPPORTED` | The opened reader does not expose normalization. |
-| `DIRARCHIVER_USAGE` | CLI usage validation failed. |
+```txt
+DIRARCHIVER_INVALID_SOURCE
+DIRARCHIVER_INVALID_DESTINATION
+DIRARCHIVER_PATH_TRAVERSAL
+DIRARCHIVER_UNSUPPORTED_ENTRY
+DIRARCHIVER_RESOURCE_LIMIT
+DIRARCHIVER_RUNTIME_UNSUPPORTED
+DIRARCHIVER_NORMALIZE_UNSUPPORTED
+DIRARCHIVER_USAGE
+```
 
-Branch on `code`, not message text. `toJSON()` returns the stable package error envelope with `schemaVersion`, `name`, `code`, `message`, and optional `hint` and `context`.
+The source and destination validation codes are part of the stable union, although some current filesystem failures still surface as native errors. Branch on `code`, not message text. `toJSON()` returns `schemaVersion`, `name`, `code`, `message`, and optional `hint` and `context`.
 
 ## Contract boundaries
 
-The wrapper's operation names, package error code names, and documented top-level result fields are the `dir-archiver` contract. Detection, audit, and normalization reports are produced by bytefold and carry their own `schemaVersion`. Runtime capability details can change with dependency updates without changing the public format names.
-
-See [CONTRACT.md](../CONTRACT.md) for the compact stability statement.
+The wrapper operation names, package error-code names, and documented top-level result fields are governed by [CONTRACT.md](../CONTRACT.md). Bytefold-owned reports and runtime capabilities remain versioned dependency surfaces.
