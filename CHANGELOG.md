@@ -3,11 +3,13 @@
 ### Unreleased
 
 * Rebuild the consumer documentation around seven canonical pages for onboarding, API, CLI, safety, formats, and troubleshooting.
-* Correct CLI audit-gate, exit-stream, runtime-format, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
+* Correct Deno installation, CLI audit-gate, output-stream, runtime-format, alias, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
 * Replace Unix-only onboarding commands with a self-contained cross-platform example for Node.js, Deno, and Bun consumers.
-* Remove the duplicated recipes layer and keep maintainer-only CI runbooks outside the published consumer docs tree.
+* Remove duplicated recipe and maintainer documentation; retain older consumer URLs only as repository-level moved-page notices.
+* Publish only the canonical consumer guides in npm and JSR packages.
 * Align exported option and error JSDoc with current v3 behavior.
-* Add automated checks for local Markdown links, heading anchors, and the canonical docs structure.
+* Add automated checks for local Markdown links, heading anchors, publication boundaries, canonical page ownership, compatibility notices, and CLI documentation drift.
+* Keep archive runtime behavior and CLI semantics unchanged.
 
 ### 3.0.2 (June 19, 2026)
 
@@ -64,8 +66,8 @@
 ### 2.1.1 (January 28, 2026)
 
 * Avoid archiving the destination zip when it lives inside the source directory ([#5](https://github.com/Ismail-elkorchi/dir-archiver/issues/5)).
-* `createZip()` now returns a Promise that resolves when the archive is closed ([#13](https://github.com/Ismail-elkorchi/dir-archiver/issues/13)).
-* Bump archiver to 7.0.1 to address dependency deprecation warnings ([#14](https://github.com/Ismail-elkorchi/dir-archiver/issues/14)).
+* `createZip()` now returns a Promise that resolves when the archive is closed ([#13](https://github.com/Ismail-elkorchi/dir-archiver/pull/13)).
+* Bump archiver to 7.0.1 to address dependency deprecation warnings ([#14](https://github.com/Ismail-elkorchi/dir-archiver/pull/14)).
 
 ### 2.1.0 (October 25, 2022)
 
