@@ -81,7 +81,7 @@ For a self-contained runnable example, read [Getting started](docs/getting-start
 | `list(input, options?)` | Return JSON-safe entry summaries without extraction. |
 | `audit(input, options?)` | Return an issue report for a selected safety profile. |
 | `extract(input, destination, options?)` | Extract with path checks, link policy, and optional byte limits. |
-| `normalize(input, destination, options?)` | Rewrite a supported format into deterministic output of the same format. |
+| `normalize(input, destination, options?)` | Produce deterministic normalized output when the reader supports it. |
 | `open(input, options?)` | Access the lower-level archive reader for advanced flows. |
 
 Read the [API guide](docs/api.md) for signatures, options, return values, and operation-specific caveats.
@@ -106,10 +106,12 @@ For automation, pass `--json`, keep stdout and stderr separate, and inspect both
 - `extract()` creates the destination, overwrites matching files, and is not transactional. A failure can leave earlier entries on disk.
 - Extract into a new directory under a trusted parent. Do not extract through pre-existing symlinked path components.
 - Strict extraction performs a pre-extraction audit automatically. A separate `audit()` call is useful when the application needs the report before deciding whether to extract.
+- Read operations report gzip-compressed TAR as `tgz`; `tgz` and `tar.gz` are aliases for the same format family.
+- Layered-TAR normalization currently writes the normalized inner TAR bytes without reapplying compression. Choose the destination extension accordingly.
 - Format capabilities vary by runtime and operation. Deno does not currently provide the same Zstandard and Brotli capabilities as Node.js and Bun.
 - Known package-policy failures use `DirArchiverError.code`. Filesystem and dependency failures can still surface as other error types.
 
-Read [Safety](docs/safety.md) before processing archives from users or external systems, and [Formats](docs/formats.md) before choosing a non-ZIP format.
+Read [Safety](docs/safety.md) before processing archives from users or external systems, and [Formats](docs/formats.md) before choosing a non-ZIP format or normalization workflow.
 
 ## Documentation
 
