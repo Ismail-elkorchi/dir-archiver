@@ -1,7 +1,5 @@
-# Reference index
+# Page moved
 
-Use this page as the canonical reference entrypoint.
+This compatibility page is retained for links from earlier releases.
 
-- [CLI reference](cli.md)
-- [Options reference](options.md)
-- [Contract](contract.md)
+Read the [documentation map](../index.md).

@@ -1,23 +1,39 @@
 # Documentation
 
-Use this map to pick the right doc quickly.
+Start with the task you need to complete. Each subject has one canonical page so consumers do not have to reconcile overlapping tutorials, recipes, and reference documents.
 
-## Tutorial
-- [Tutorial: bundle a plugin directory](tutorial/bundle-a-plugin.md)
-- [Tutorial: first archive flow](tutorial/first-archive-flow.md)
+## Learn the library
 
-## How-to
-- [Use CLI JSON output and exit codes](how-to/cli-json-and-exit-codes.md)
-- [Troubleshoot common failures](how-to/troubleshoot-common-failures.md)
-- [Extract untrusted archives safely](how-to/extract-untrusted.md)
-- [How-to index](how-to/index.md)
+| Page | Read it for |
+| --- | --- |
+| [Getting started](getting-started.md) | A self-contained create, inspect, audit, and extract flow. |
+| [API guide](api.md) | Inputs, signatures, options, results, errors, and operation caveats. |
+| [CLI guide](cli.md) | Installation, commands, flags, output streams, exit codes, and automation. |
+| [Safety](safety.md) | Profiles, untrusted input, resource limits, links, overwrite behavior, and staging. |
+| [Formats](formats.md) | Format inference, aliases, write support, normalization, and runtime differences. |
+| [Troubleshooting](troubleshooting.md) | Symptoms, causes, diagnostics, and first fixes. |
 
-## Reference
-- [CLI reference](reference/cli.md)
-- [Options reference](reference/options.md)
-- [Contract](reference/contract.md)
-- [Reference index](reference/index.md)
+## Find a task
 
-## Explanation
-- [Explanation index](explanation/index.md)
-- [Profile behavior and tradeoffs](explanation/profiles.md)
+| Task | Page and section |
+| --- | --- |
+| Create an archive from a directory | [API: write](api.md#write) |
+| Keep a stable root folder in the archive | [API: includeBaseDirectory](api.md#include-the-source-directory) |
+| Exclude local files | [API: exclude](api.md#exclude-source-paths) |
+| Inspect an archive without extracting | [API: detect](api.md#detect) and [API: list](api.md#list) |
+| Decide whether an archive is acceptable | [API: audit](api.md#audit) |
+| Extract an external archive | [Safety: recommended extraction flow](safety.md#recommended-extraction-flow) |
+| Use the CLI in automation | [CLI: automation contract](cli.md#automation-contract) |
+| Fail a CI job when audit reports issues | [CLI: audit as a gate](cli.md#use-audit-as-a-gate) |
+| Choose a format | [Formats](formats.md) |
+| Normalize output | [API: normalize](api.md#normalize) |
+| Handle failures | [Troubleshooting](troubleshooting.md) |
+
+## Contracts and support
+
+- [Public behavior contract](../CONTRACT.md)
+- [Security policy](../SECURITY.md)
+- [Support](../SUPPORT.md)
+- [Changelog](../CHANGELOG.md)
+
+Older documentation paths remain in the source repository as small moved-page notices so existing GitHub links continue to work. They are not included in new npm or JSR packages, and new documentation belongs only on the canonical pages above.

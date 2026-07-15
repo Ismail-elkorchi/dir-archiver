@@ -1,5 +1,5 @@
-# Explanation index
+# Page moved
 
-Design and tradeoff notes:
+This compatibility page is retained for links from earlier releases.
 
-- [Profile behavior and tradeoffs](profiles.md)
+Read the [documentation map](../index.md).

@@ -1,7 +1,5 @@
-# How-to index
+# Page moved
 
-Pick the guide that matches the job:
+This compatibility page is retained for links from earlier releases.
 
-- [Use CLI JSON output and exit codes](cli-json-and-exit-codes.md)
-- [Troubleshoot common failures](troubleshoot-common-failures.md)
-- [Extract untrusted archives safely](extract-untrusted.md)
+Read the [documentation map](../index.md).
