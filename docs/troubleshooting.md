@@ -1,47 +1,48 @@
 # Troubleshooting
 
-Start with the operation, process exit code, error type, stable package code when present, runtime, and format. Do not diagnose an API or CLI failure from message text alone.
+Start with the operation, runtime, format, process exit code, and error type. Use a stable package code when one is present, but do not assume every failure is a `DirArchiverError`.
 
 ## Quick diagnosis
 
 | Symptom | Likely explanation | First action |
 | --- | --- | --- |
-| CLI `audit` exits `0` but the archive should be rejected | `audit` completed and returned a report whose `ok` field may be `false` | Parse the report and fail the job when `ok` is false. |
-| An exit-`1` stderr value is not JSON | The failure came from the filesystem, network, cancellation, or a dependency rather than `DirArchiverError` | Treat stderr as diagnostic text unless it parses as the documented error envelope. |
-| API error has no `code` | Not every operational failure is wrapped by `DirArchiverError` | Check `instanceof DirArchiverError`, then handle other errors separately. |
-| `DIRARCHIVER_PATH_TRAVERSAL` | An entry or enabled symlink target failed containment checks | Reject or rebuild the archive; do not retry with a weaker profile. |
-| `DIRARCHIVER_RESOURCE_LIMIT` | A materialized entry or total output exceeded explicit extraction limits | Inspect the archive and application budget before raising limits. |
-| `DIRARCHIVER_UNSUPPORTED_ENTRY` | Audit policy, an entry type, hard link, or a write capability was rejected | Run `audit()` and `list()`, then inspect the archive and chosen format. |
-| `DIRARCHIVER_NORMALIZE_UNSUPPORTED` | The opened format has no normalization operation | Check the format matrix or skip normalization. |
-| Writing `bz2`, `tar.bz2`, `xz`, or `tar.xz` fails | Those writer formats are unsupported in the current implementation | Choose ZIP, TAR, gzip, Zstandard, or Brotli where the target runtime supports it. |
-| Deno fails on Zstandard or Brotli | Those operations are capability-gated in the current Deno adapter | Use another format or run that workflow on Node.js/Bun. |
-| `write()` reports `tar.gz` for `.tgz`, while read detection reports `tgz` | Write inference and read-side filename detection use different aliases for the same format family | Treat `tgz` and `tar.gz` as equivalent or force the identifier explicitly. |
-| The archive contains itself | The destination was created inside the source directory | Move the destination outside the source or exclude its exact relative path. |
-| A previous archive was lost after a failed write | The destination is opened and replaced before all source files are added | Write to a temporary sibling and rename it only after success. |
-| Empty directories disappeared | `write()` emits file entries, not empty directory entries | Add a marker file or use a lower-level writer when empty directories matter. |
-| Mode or modification time changed | The directory wrapper does not preserve source filesystem metadata | Normalize expectations or use a lower-level writer with metadata options. |
-| Files were overwritten or left after failure | Extraction is not transactional | Extract into a fresh staging directory and remove it on failure. |
-| An exclusion did not match | Exclusions are basename or exact relative-path matches, not globs | Print the archive with `list()` and correct the match. |
+| CLI `audit` exits `0` but the archive should be rejected | The command completed and returned a report whose `ok` field is `false` | Parse the report and fail the job when `ok` is false. |
+| Exit-`1` stderr is not JSON | A filesystem, network, cancellation, parser, or codec error bypassed `DirArchiverError` | Retain stderr as diagnostic text instead of parsing it unconditionally. |
+| API error has no `code` | Not every operational failure is wrapped | Check `instanceof DirArchiverError`, then handle other errors separately. |
+| `DIRARCHIVER_PATH_TRAVERSAL` | An entry or enabled symlink target failed containment checks | Reject or rebuild the archive. |
+| `DIRARCHIVER_RESOURCE_LIMIT` | A materialized entry or total output exceeded explicit extraction limits | Inspect the archive and resource budget before raising limits. |
+| `DIRARCHIVER_UNSUPPORTED_ENTRY` | Audit policy, an entry type, hard link, or a known writer capability was rejected | Run `audit()` and `list()`, then inspect the input and selected format. |
+| `DIRARCHIVER_NORMALIZE_UNSUPPORTED` | The opened reader has no normalization operation | Check [Formats](formats.md) or skip normalization. |
+| Deno fails on Zstandard or Brotli | Those operations are capability-gated in the current Deno adapter | Choose another format or use Node.js/Bun for that workflow. |
+| `write()` reports `tar.gz`, while read detection reports `tgz` | Write inference and read inference use different aliases for the same format family | Treat them as equivalent or force `format`. |
+| The archive contains itself | The destination was created inside the source directory | Move the destination outside the source tree. |
+| A previous archive disappeared after a failed write | The destination was replaced before all source files were added | Write to a temporary sibling and publish only after success. |
+| Empty directories disappeared | The directory writer emits file entries | Add a marker file or use a lower-level writer when empty directories matter. |
+| Mode or modification time changed | The directory wrapper does not preserve source filesystem metadata | Use a lower-level writer when metadata preservation is required. |
+| Files were overwritten or left after extraction failed | Extraction is not transactional | Remove the staging directory and retry in a new one. |
+| An exclusion did not match | Exclusions are basenames or exact relative paths, not globs | List the result and correct the match. |
 
 ## Audit completed but did not fail the job
 
-The CLI exit code reports whether the command ran, not whether the audit report is acceptable.
+The CLI exit code reports whether `audit` produced a report, not whether that report is acceptable.
 
-```sh
-npx dir-archiver audit --input ./incoming.zip --profile agent --json > audit.json
-```
-
-Check the report with a script:
+Create `check-audit.mjs`:
 
 ```js
 import { readFile } from "node:fs/promises";
 
-const report = JSON.parse(await readFile("audit.json", "utf8"));
+const report = JSON.parse(await readFile(process.argv[2], "utf8"));
 
 if (!report.ok) {
-  console.error(report.issues);
+  console.error(JSON.stringify(report.issues, null, 2));
   process.exitCode = 1;
 }
+```
+
+Run the checker only after the audit command succeeds operationally:
+
+```sh
+npx dir-archiver audit --input ./incoming.zip --profile agent --json > audit.json && node check-audit.mjs audit.json
 ```
 
 The API has the same report semantics:
@@ -59,8 +60,6 @@ See [Use audit as a gate](cli.md#use-audit-as-a-gate).
 
 ## Handle package and non-package errors
 
-Only known wrapper failures are guaranteed to be `DirArchiverError`.
-
 ```js
 import { DirArchiverError, extract } from "dir-archiver";
 
@@ -71,31 +70,25 @@ try {
   });
 } catch (error) {
   if (error instanceof DirArchiverError) {
-    console.error({
-      code: error.code,
-      context: error.context,
-    });
+    console.error({ code: error.code, context: error.context });
   } else if (error instanceof Error) {
-    console.error({
-      name: error.name,
-      message: error.message,
-    });
+    console.error({ name: error.name, message: error.message });
   } else {
     console.error(error);
   }
 }
 ```
 
-Common native or dependency failures include:
+Common non-package failures include:
 
-- `ENOENT`: a source or input path does not exist;
-- `EACCES` or `EPERM`: the process lacks filesystem permission;
-- network and HTTP errors for URL input;
-- `AbortError` or another cancellation error;
-- codec capability errors;
+- `ENOENT` for a missing path;
+- `EACCES` or `EPERM` for filesystem permissions;
+- HTTP and network failures for URL input;
+- cancellation errors;
+- dependency resource-limit or codec-capability errors;
 - malformed archive errors produced before the wrapper can map them.
 
-The stable package code union includes reserved source and destination code names, but current filesystem failures are not all converted into those codes.
+The stable code union includes source and destination validation names, but current filesystem failures are not all converted into those codes.
 
 ## Parse CLI output defensively
 
@@ -106,23 +99,15 @@ With `--json`:
 - known `DirArchiverError` failures write JSON to stderr and exit `1`;
 - other exit-`1` failures can write a stack or message to stderr.
 
-Capture the streams separately:
+Capture streams separately and check the exit code before parsing stdout:
 
 ```sh
 npx dir-archiver extract --input ./incoming.zip --output ./staging/out --profile strict --json > result.json 2> error.txt
 ```
 
-Check the exit code before parsing `result.json`. On exit `1`, attempt to parse `error.txt` as JSON only after confirming it has the expected envelope; otherwise retain it as diagnostic text.
+On exit `1`, parse `error.txt` as JSON only after confirming that it has the documented package envelope.
 
 ## The archive contains the destination
-
-Problematic layout:
-
-```txt
-project/
-  src/index.js
-  project.zip
-```
 
 Problematic call:
 
@@ -130,7 +115,7 @@ Problematic call:
 await write("./project", "./project/project.zip");
 ```
 
-`write()` opens the destination before walking the source. The new output file can therefore be discovered as a source entry.
+`write()` opens the destination before walking a directory source, so the new file can be discovered during traversal.
 
 Preferred layout:
 
@@ -138,13 +123,11 @@ Preferred layout:
 await write("./project", "./artifacts/project.zip");
 ```
 
-When moving the output is impossible, exclude the exact relative path, but a separate artifact directory remains easier to reason about.
+A separate artifact directory is easier to verify than excluding the output path from its own source tree.
 
 ## A write replaced the previous destination before failing
 
-`write()` is not transactional. It opens the destination before reading and adding every source file. An existing archive can therefore be replaced even when a later source read or writer operation fails.
-
-Write to a temporary sibling and rename only after success:
+`write()` is not transactional. Use a temporary sibling and rename only after success:
 
 ```js
 import { rename, rm } from "node:fs/promises";
@@ -165,17 +148,13 @@ try {
 }
 ```
 
-Replacing an existing published file atomically is platform- and application-specific. Choose the final publication strategy for the target filesystem rather than assuming one rename pattern works everywhere.
+Replacing an existing published file atomically is platform- and application-specific. Select a publication strategy for the target filesystem rather than assuming one rename pattern works everywhere.
 
 ## Files landed at the wrong archive root
 
-Given `project/src/index.js`, the default stores `src/index.js`.
-
-Use `includeBaseDirectory` to store `project/src/index.js`:
+Given `project/src/index.js`, the default stores `src/index.js`. Set `includeBaseDirectory` to store `project/src/index.js`:
 
 ```js
-import { write } from "dir-archiver";
-
 await write("./project", "./artifacts/project.zip", {
   includeBaseDirectory: true,
 });
@@ -187,13 +166,11 @@ CLI:
 npx dir-archiver write --source ./project --output ./artifacts/project.zip --include-base-directory
 ```
 
-Verify the result with `list()` or `npx dir-archiver list --input ./artifacts/project.zip --json`.
+Verify the result with `list()` or the CLI `list` command.
 
 ## Exclusions did not match
 
 ```js
-import { list, write } from "dir-archiver";
-
 await write("./project", "./artifacts/project.zip", {
   exclude: [
     "node_modules",    // basename anywhere in the tree
@@ -201,44 +178,33 @@ await write("./project", "./artifacts/project.zip", {
     "build/debug.log", // exact source-relative path
   ],
 });
-
-const result = await list("./artifacts/project.zip");
-console.log(result.entries.map((entry) => entry.name));
 ```
 
-These do not behave as globs:
+These are not globs:
 
 ```txt
 *.log
 build/**
 ```
 
-On Windows, matching is case-insensitive. On other supported platforms, use the source path's case.
+Matching is case-insensitive on Windows and case-sensitive on other supported platforms. `exclude` applies to directory traversal, not to a single-file source.
 
 ## Format detection was unexpected
-
-Run detection first:
 
 ```sh
 npx dir-archiver detect --input ./artifact --json
 ```
 
-For a generic filename or non-path input, supply a hint or force the format in the API:
+For a generic filename or in-memory input, supply a hint or force the format:
 
 ```js
 await detect(bytes, { filename: "artifact.tar.br" });
 await detect(bytes, { format: "tar.br" });
 ```
 
-For the CLI, use `--format`:
+A forced format must match the bytes; it does not convert them.
 
-```sh
-npx dir-archiver list --input ./artifact --format tar.br --json
-```
-
-A forced format must match the bytes. It does not convert them.
-
-For gzip-compressed TAR, read-side filename inference in bytefold `0.8.x` reports `tgz` for both `.tgz` and `.tar.gz`. By contrast, `write()` destination inference reports `tar.gz` for both suffixes. The bytes and format family are equivalent; force `format` only when the exact alias matters to your application.
+Current read-side filename inference reports `tgz` for both `.tgz` and `.tar.gz`. `write()` destination inference reports `tar.gz` for both suffixes. The identifiers describe the same format family.
 
 ## Write format was rejected
 
@@ -246,8 +212,7 @@ Current writer restrictions are operation-specific:
 
 - `bz2` and `tar.bz2` are not writable;
 - `xz` and `tar.xz` are not writable;
-- a directory requested as `bz2` maps to `tar.bz2` and then fails;
-- a directory requested as `xz` maps to `tar.xz` and then fails;
+- directory requests for `bz2` or `xz` are mapped to the corresponding TAR format and then rejected;
 - Deno additionally capability-gates Zstandard and Brotli.
 
 Read [Formats](formats.md) before selecting a non-ZIP output.
@@ -256,7 +221,7 @@ Read [Formats](formats.md) before selecting a non-ZIP output.
 
 Two limit layers can fail:
 
-1. bytefold reader limits inside `limits`, often surfaced as dependency errors;
+1. reader and decompression limits inside `limits`, often surfaced as dependency errors;
 2. wrapper materialization limits, surfaced as `DIRARCHIVER_RESOURCE_LIMIT`.
 
 Inspect before changing policy:
@@ -267,49 +232,41 @@ import { audit, list } from "dir-archiver";
 const inventory = await list("./incoming.zip", {
   limits: { maxEntries: 5_000 },
 });
-
 console.log(inventory.entries.map(({ name, size }) => ({ name, size })));
 
-const report = await audit("./incoming.zip", {
-  profile: "agent",
-});
-
+const report = await audit("./incoming.zip", { profile: "agent" });
 console.log(report.summary, report.issues);
 ```
 
-Archive entry sizes are strings. Convert them to `BigInt` when summing values that may exceed JavaScript's safe integer range.
-
-Do not raise limits solely to make an unknown archive pass. Compare the requested resources with the application's memory, disk, time, and tenant quotas.
+Entry sizes are strings. Use `BigInt` when summing values that may exceed JavaScript's safe integer range. Compare requested resources with the application's memory, disk, time, and tenant budgets before raising limits.
 
 ## Partial extraction or overwritten files
 
-`extract()` creates the destination before audit, replaces matching files, and leaves completed work after a later failure.
-
-Response:
+After an extraction failure:
 
 1. stop using the failed destination;
-2. remove the entire staging directory;
+2. remove the whole staging directory;
 3. fix the input or policy;
-4. retry in a newly created directory.
+4. retry in a new directory.
 
 Do not retry into the same partly populated path. See [Recommended extraction flow](safety.md#recommended-extraction-flow).
 
 ## Normalization failed
 
-Check these points:
+Check that:
 
-- the source and destination are different paths;
+- source and destination are different paths;
 - the source format supports normalization;
-- Deno has the required codec capability;
+- the runtime has the required codec capability;
 - the destination parent is writable;
-- a partial destination is removed after failure;
-- the destination extension matches the source format, because normalization does not convert formats.
+- partial output is removed after failure;
+- the destination extension describes the source format, because normalization does not convert formats.
 
-Bare `gz`, `bz2`, `xz`, `zst`, and `br` are not normalizable in the current Node.js/Bun matrix. See [Formats](formats.md#normalize-is-not-conversion).
+Bare `gz`, `bz2`, `xz`, `zst`, and `br` inputs are not normalizable in the current Node.js/Bun matrix. See [Formats](formats.md#normalize-is-not-conversion).
 
 ## Diagnostic sequence
 
-For an unknown archive failure, run non-mutating operations first:
+Run non-mutating operations first:
 
 ```sh
 npx dir-archiver detect --input ./incoming.zip --json
@@ -317,17 +274,17 @@ npx dir-archiver list --input ./incoming.zip --json
 npx dir-archiver audit --input ./incoming.zip --profile agent --json
 ```
 
-Then record:
+Record:
 
-- runtime and runtime version;
+- runtime, runtime version, and operating system;
 - `dir-archiver` version;
 - API call or exact CLI command;
-- input format and how it was detected;
+- input kind and format;
 - process exit code;
 - stdout and stderr separately;
 - `DirArchiverError.code` and `context` when present;
 - audit `schemaVersion`, `ok`, summary, and issues;
-- a minimal non-sensitive archive fixture when possible.
+- a minimal non-sensitive fixture when possible.
 
 Use [SUPPORT.md](../SUPPORT.md) when opening an issue.
 
