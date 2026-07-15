@@ -207,6 +207,8 @@ Backslashes are normalized before the checks, so Windows-style traversal is also
 Known wrapper failures can be handled by stable package code:
 
 ```js
+import { DirArchiverError, extract } from "dir-archiver";
+
 try {
   await extract(input, destination, options);
 } catch (error) {
