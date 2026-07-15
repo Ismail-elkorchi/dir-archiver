@@ -16,11 +16,10 @@ const rootMarkdownFiles = [
 
 const markdownDirectories = [
   'docs',
-  'maintenance',
   '.github'
 ];
 
-const canonicalConsumerDocs = [
+const canonicalConsumerDocs = new Set([
   'docs/index.md',
   'docs/getting-started.md',
   'docs/api.md',
@@ -28,69 +27,37 @@ const canonicalConsumerDocs = [
   'docs/safety.md',
   'docs/formats.md',
   'docs/troubleshooting.md'
+]);
+
+const legacyMovedPages = new Map([
+  ['docs/tutorial/first-archive-flow.md', '../getting-started.md'],
+  ['docs/tutorial/bundle-a-plugin.md', '../api.md#write'],
+  ['docs/how-to/index.md', '../index.md'],
+  ['docs/how-to/cli-json-and-exit-codes.md', '../cli.md#automation-contract'],
+  ['docs/how-to/extract-untrusted.md', '../safety.md#recommended-extraction-flow'],
+  ['docs/how-to/troubleshoot-common-failures.md', '../troubleshooting.md'],
+  ['docs/reference/index.md', '../index.md'],
+  ['docs/reference/cli.md', '../cli.md'],
+  ['docs/reference/options.md', '../api.md'],
+  ['docs/reference/contract.md', '../../CONTRACT.md'],
+  ['docs/explanation/index.md', '../index.md'],
+  ['docs/explanation/profiles.md', '../safety.md#profiles']
+]);
+
+const packageManifest = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')
+);
+const jsrManifest = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'jsr.json'), 'utf8')
+);
+
+const npmEntries = [
+  'package.json',
+  ...packageManifest.files
 ];
+const jsrEntries = jsrManifest.publish.include;
 
-test('local Markdown links and heading anchors resolve', () => {
-  const markdownFiles = collectMarkdownFiles();
-  const failures = [];
-
-  for (const sourcePath of markdownFiles) {
-    const source = fs.readFileSync(sourcePath, 'utf8');
-    for (const link of collectLocalLinks(source)) {
-      const resolved = resolveLink(sourcePath, link.target);
-      if (!resolved) continue;
-
-      if (!fs.existsSync(resolved.filePath)) {
-        failures.push(`${relative(sourcePath)}:${link.line} -> missing ${relative(resolved.filePath)}`);
-        continue;
-      }
-
-      if (!resolved.fragment || path.extname(resolved.filePath).toLowerCase() !== '.md') {
-        continue;
-      }
-
-      const anchors = collectHeadingAnchors(fs.readFileSync(resolved.filePath, 'utf8'));
-      if (!anchors.has(resolved.fragment)) {
-        failures.push(
-          `${relative(sourcePath)}:${link.line} -> missing #${resolved.fragment} in ${relative(resolved.filePath)}`
-        );
-      }
-    }
-  }
-
-  assert.deepEqual(failures, []);
-});
-
-test('consumer documentation stays on the canonical pages', () => {
-  for (const relativePath of canonicalConsumerDocs) {
-    assert.equal(fs.existsSync(path.join(repoRoot, relativePath)), true, `missing ${relativePath}`);
-  }
-
-  const recipesPath = path.join(repoRoot, 'docs', 'recipes');
-  const recipeMarkdown = fs.existsSync(recipesPath)
-    ? walk(recipesPath).filter((filePath) => path.extname(filePath).toLowerCase() === '.md')
-    : [];
-
-  assert.deepEqual(
-    recipeMarkdown.map(relative),
-    [],
-    'consumer tasks should be added to canonical pages instead of a duplicated recipes layer'
-  );
-});
-
-function collectMarkdownFiles() {
-  const files = rootMarkdownFiles.map((relativePath) => path.join(repoRoot, relativePath));
-
-  for (const relativeDirectory of markdownDirectories) {
-    const directory = path.join(repoRoot, relativeDirectory);
-    if (!fs.existsSync(directory)) continue;
-    files.push(...walk(directory).filter((filePath) => path.extname(filePath).toLowerCase() === '.md'));
-  }
-
-  return [...new Set(files)].sort();
-}
-
-function walk(directory) {
+const walk = (directory) => {
   const files = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const entryPath = path.join(directory, entry.name);
@@ -101,9 +68,34 @@ function walk(directory) {
     }
   }
   return files;
-}
+};
 
-function collectLocalLinks(source) {
+const collectMarkdownFiles = () => {
+  const files = rootMarkdownFiles.map((relativePath) => path.join(repoRoot, relativePath));
+
+  for (const relativeDirectory of markdownDirectories) {
+    const directory = path.join(repoRoot, relativeDirectory);
+    if (!fs.existsSync(directory)) {
+      continue;
+    }
+    files.push(...walk(directory).filter((filePath) => path.extname(filePath).toLowerCase() === '.md'));
+  }
+
+  return [...new Set(files)].sort();
+};
+
+const normalizeMarkdownTarget = (raw) => {
+  if (raw.startsWith('<') && raw.endsWith('>')) {
+    return raw.slice(1, -1);
+  }
+
+  const titleMatch = raw.match(/^(\S+)(?:\s+["'][^"']*["'])$/u);
+  return titleMatch?.[1] ?? raw;
+};
+
+const isExternalTarget = (target) => /^(?:https?:|mailto:|tel:|data:|javascript:)/iu.test(target);
+
+const collectLinks = (source, includeExternal = false) => {
   const links = [];
   const lines = source.replace(/\r\n/gu, '\n').split('\n');
   let fence = undefined;
@@ -120,34 +112,25 @@ function collectLocalLinks(source) {
       }
       continue;
     }
-    if (fence) continue;
+    if (fence) {
+      continue;
+    }
 
     const expression = /!?\[[^\]]*\]\(([^)]+)\)/gu;
     for (const match of line.matchAll(expression)) {
       const raw = (match[1] ?? '').trim();
       const target = normalizeMarkdownTarget(raw);
-      if (!target || isExternalTarget(target)) continue;
+      if (!target || (!includeExternal && isExternalTarget(target))) {
+        continue;
+      }
       links.push({ target, line: index + 1 });
     }
   }
 
   return links;
-}
+};
 
-function normalizeMarkdownTarget(raw) {
-  if (raw.startsWith('<') && raw.endsWith('>')) {
-    return raw.slice(1, -1);
-  }
-
-  const titleMatch = raw.match(/^(\S+)(?:\s+["'][^"']*["'])$/u);
-  return titleMatch?.[1] ?? raw;
-}
-
-function isExternalTarget(target) {
-  return /^(?:https?:|mailto:|tel:|data:|javascript:)/iu.test(target);
-}
-
-function resolveLink(sourcePath, target) {
+const resolveLink = (sourcePath, target) => {
   const hashIndex = target.indexOf('#');
   const rawPath = hashIndex === -1 ? target : target.slice(0, hashIndex);
   const rawFragment = hashIndex === -1 ? '' : target.slice(hashIndex + 1);
@@ -172,9 +155,18 @@ function resolveLink(sourcePath, target) {
     filePath,
     fragment: decodedFragment
   };
-}
+};
 
-function collectHeadingAnchors(source) {
+const githubHeadingSlug = (value) => value
+  .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
+  .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
+  .replace(/[`*_~]/gu, '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^\p{L}\p{N}_\-\s]/gu, '')
+  .replace(/\s+/gu, '-');
+
+const collectHeadingAnchors = (source) => {
   const anchors = new Set();
   const counts = new Map();
   const lines = source.replace(/\r\n/gu, '\n').split('\n');
@@ -191,33 +183,163 @@ function collectHeadingAnchors(source) {
       }
       continue;
     }
-    if (fence) continue;
+    if (fence) {
+      continue;
+    }
 
     const headingMatch = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/u);
-    if (!headingMatch) continue;
+    if (!headingMatch) {
+      continue;
+    }
 
     const base = githubHeadingSlug(headingMatch[1] ?? '');
-    if (!base) continue;
+    if (!base) {
+      continue;
+    }
     const count = counts.get(base) ?? 0;
-    const anchor = count === 0 ? base : `${base}-${count}`;
     counts.set(base, count + 1);
-    anchors.add(anchor);
+    anchors.add(count === 0 ? base : `${base}-${count}`);
   }
 
   return anchors;
+};
+
+const relative = (filePath) => path.relative(repoRoot, filePath).replaceAll(path.sep, '/');
+
+const isInsideRepository = (filePath) => {
+  const relativePath = path.relative(repoRoot, filePath);
+  return relativePath === ''
+    || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+};
+
+const normalizeManifestEntry = (entry) => entry.replace(/\\/gu, '/');
+
+const manifestIncludesPath = (relativePath, entries) => {
+  const normalizedPath = relativePath.replace(/\\/gu, '/');
+
+  for (const rawEntry of entries) {
+    const entry = normalizeManifestEntry(rawEntry);
+    if (entry.endsWith('/**')) {
+      const prefix = entry.slice(0, -3);
+      if (normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (normalizedPath === entry || normalizedPath.startsWith(`${entry}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+test('relative Markdown links and heading anchors resolve', () => {
+  const failures = [];
+
+  for (const sourcePath of collectMarkdownFiles()) {
+    const source = fs.readFileSync(sourcePath, 'utf8');
+    for (const link of collectLinks(source)) {
+      const resolved = resolveLink(sourcePath, link.target);
+      if (!resolved) {
+        failures.push(`${relative(sourcePath)}:${link.line} -> invalid ${link.target}`);
+        continue;
+      }
+
+      if (!isInsideRepository(resolved.filePath)) {
+        failures.push(`${relative(sourcePath)}:${link.line} -> ${link.target} escapes the repository`);
+        continue;
+      }
+
+      if (!fs.existsSync(resolved.filePath)) {
+        failures.push(`${relative(sourcePath)}:${link.line} -> missing ${relative(resolved.filePath)}`);
+        continue;
+      }
+
+      if (!resolved.fragment || path.extname(resolved.filePath).toLowerCase() !== '.md') {
+        continue;
+      }
+
+      const anchors = collectHeadingAnchors(fs.readFileSync(resolved.filePath, 'utf8'));
+      if (!anchors.has(resolved.fragment)) {
+        failures.push(
+          `${relative(sourcePath)}:${link.line} -> missing #${resolved.fragment} in ${relative(resolved.filePath)}`
+        );
+      }
+    }
+  }
+
+  assert.deepEqual(failures, []);
+});
+
+for (const [label, entries] of [
+  ['npm', npmEntries],
+  ['JSR', jsrEntries]
+]) {
+  test(`${label} Markdown links stay inside the published package`, () => {
+    const failures = [];
+
+    for (const sourcePath of collectMarkdownFiles()) {
+      const sourceRelative = relative(sourcePath);
+      if (!manifestIncludesPath(sourceRelative, entries)) {
+        continue;
+      }
+
+      const source = fs.readFileSync(sourcePath, 'utf8');
+      for (const link of collectLinks(source)) {
+        const resolved = resolveLink(sourcePath, link.target);
+        if (!resolved || !isInsideRepository(resolved.filePath)) {
+          continue;
+        }
+
+        const targetRelative = relative(resolved.filePath);
+        if (!manifestIncludesPath(targetRelative, entries)) {
+          failures.push(
+            `${sourceRelative}:${link.line} -> ${link.target} targets unpublished ${targetRelative}`
+          );
+        }
+      }
+    }
+
+    assert.deepEqual(failures, []);
+  });
 }
 
-function githubHeadingSlug(value) {
-  return value
-    .replace(/!\[([^\]]*)\]\([^)]*\)/gu, '$1')
-    .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
-    .replace(/[`*_~]/gu, '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}_\-\s]/gu, '')
-    .replace(/\s+/gu, '-');
-}
+test('consumer documentation stays on canonical pages', () => {
+  const docsMarkdown = walk(path.join(repoRoot, 'docs'))
+    .filter((filePath) => path.extname(filePath).toLowerCase() === '.md')
+    .map(relative)
+    .sort();
+  const allowedDocs = new Set([
+    ...canonicalConsumerDocs,
+    ...legacyMovedPages.keys()
+  ]);
+  const unexpected = docsMarkdown.filter((relativePath) => !allowedDocs.has(relativePath));
 
-function relative(filePath) {
-  return path.relative(repoRoot, filePath).replaceAll(path.sep, '/');
-}
+  for (const requiredPath of canonicalConsumerDocs) {
+    assert.equal(fs.existsSync(path.join(repoRoot, requiredPath)), true, `missing ${requiredPath}`);
+  }
+
+  assert.deepEqual(
+    unexpected,
+    [],
+    'consumer material must stay on canonical pages; old paths may only be move notices'
+  );
+});
+
+test('legacy documentation paths remain minimal moved-page notices', () => {
+  for (const [relativePath, target] of legacyMovedPages) {
+    const filePath = path.join(repoRoot, relativePath);
+    assert.equal(fs.existsSync(filePath), true, `missing ${relativePath}`);
+
+    const source = fs.readFileSync(filePath, 'utf8');
+    const links = collectLinks(source, true);
+
+    assert.match(source, /compatibility page is retained/iu, `${relativePath} needs a move notice`);
+    assert.equal(links.length, 1, `${relativePath} must contain exactly one link`);
+    assert.equal(links[0]?.target, target, `${relativePath} must point to ${target}`);
+    assert.equal(source.includes('```'), false, `${relativePath} must not duplicate examples`);
+    assert.ok(source.length < 500, `${relativePath} must stay minimal`);
+  }
+});
