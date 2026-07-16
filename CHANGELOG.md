@@ -5,10 +5,10 @@
 * Rebuild the consumer documentation around seven canonical pages for onboarding, API, CLI, safety, formats, and troubleshooting.
 * Correct Deno installation, CLI audit-gate, output-stream, runtime-format, alias, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
 * Replace Unix-only onboarding commands with a self-contained cross-platform example for Node.js, Deno, and Bun consumers.
-* Remove duplicated recipe and maintainer documentation; retain older consumer URLs only as repository-level moved-page notices.
+* Remove duplicated recipe, maintainer, and compatibility-page documentation so `docs/` contains only the canonical consumer guides.
 * Publish only the canonical consumer guides in npm and JSR packages.
 * Align exported option and error JSDoc with current v3 behavior.
-* Add automated checks for local Markdown links, heading anchors, publication boundaries, canonical page ownership, compatibility notices, and CLI documentation drift.
+* Add automated checks for local Markdown links, heading anchors, publication boundaries, canonical page ownership, and CLI documentation drift.
 * Keep archive runtime behavior and CLI semantics unchanged.
 
 ### 3.0.2 (June 19, 2026)
