@@ -35,5 +35,3 @@ Start with the task you need to complete. Each subject has one canonical page so
 - [Security policy](../SECURITY.md)
 - [Support](../SUPPORT.md)
 - [Changelog](../CHANGELOG.md)
-
-Older documentation paths remain in the source repository as small moved-page notices so existing GitHub links continue to work. They are not included in new npm or JSR packages, and new documentation belongs only on the canonical pages above.
