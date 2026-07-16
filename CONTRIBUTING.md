@@ -49,20 +49,7 @@ Each subject has one canonical consumer page:
 | Stability boundary | `CONTRACT.md` |
 | Vulnerability reporting | `SECURITY.md` |
 
-Do not add a second tutorial, recipe, how-to, explanation, or reference page when the content belongs in a canonical page. Add a section to the owning page and link directly to that section.
-
-## Compatibility notices
-
-Paths used by earlier releases under `docs/tutorial/`, `docs/how-to/`, `docs/reference/`, and `docs/explanation/` remain in the source repository only as small moved-page notices.
-
-Each notice must:
-
-- contain exactly one link to its canonical replacement;
-- contain no copied examples, option tables, or reference material;
-- remain excluded from new npm and JSR packages;
-- stay covered by `test/docs-links.test.mjs`.
-
-Do not add new content to a compatibility path.
+The `docs/` directory contains only the seven canonical consumer pages listed above. Do not add a second tutorial, recipe, how-to, explanation, redirect, or reference page when the content belongs in an existing page. Add a section to the owning page and link directly to that section.
 
 ## Documentation quality rules
 
@@ -92,8 +79,8 @@ Consumer CLI examples should use the installed executable, normally `npx dir-arc
 - local Markdown targets and heading anchors;
 - that links do not escape the repository;
 - that npm and JSR Markdown links resolve within each published package;
-- that all consumer content stays on the canonical pages;
-- that older paths remain minimal moved-page notices.
+- that all seven canonical consumer pages exist and are published;
+- that no additional Markdown pages are added under `docs/`.
 
 A green link test does not validate behavioral claims. Review documentation changes against:
 
@@ -122,6 +109,6 @@ Generated API documentation and Markdown must agree. In particular:
 - [ ] behavior changes have tests
 - [ ] consumer docs match the implementation and current dependency matrix
 - [ ] npm and JSR package-local links pass the documentation test
-- [ ] compatibility notices still point to the canonical destinations
+- [ ] `docs/` contains only the seven canonical consumer pages
 - [ ] `CONTRACT.md` is updated for stability-boundary changes
 - [ ] `CHANGELOG.md` includes release-relevant changes
