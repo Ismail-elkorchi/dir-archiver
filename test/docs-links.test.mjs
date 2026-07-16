@@ -29,21 +29,6 @@ const canonicalConsumerDocs = new Set([
   'docs/troubleshooting.md'
 ]);
 
-const legacyMovedPages = new Map([
-  ['docs/tutorial/first-archive-flow.md', '../getting-started.md'],
-  ['docs/tutorial/bundle-a-plugin.md', '../api.md#write'],
-  ['docs/how-to/index.md', '../index.md'],
-  ['docs/how-to/cli-json-and-exit-codes.md', '../cli.md#automation-contract'],
-  ['docs/how-to/extract-untrusted.md', '../safety.md#recommended-extraction-flow'],
-  ['docs/how-to/troubleshoot-common-failures.md', '../troubleshooting.md'],
-  ['docs/reference/index.md', '../index.md'],
-  ['docs/reference/cli.md', '../cli.md'],
-  ['docs/reference/options.md', '../api.md'],
-  ['docs/reference/contract.md', '../../CONTRACT.md'],
-  ['docs/explanation/index.md', '../index.md'],
-  ['docs/explanation/profiles.md', '../safety.md#profiles']
-]);
-
 const packageManifest = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')
 );
@@ -94,7 +79,7 @@ const normalizeMarkdownTarget = (raw) => {
 
 const isExternalTarget = (target) => /^(?:https?:|mailto:|tel:|data:|javascript:)/iu.test(target);
 
-const collectLinks = (source, includeExternal = false) => {
+const collectLinks = (source) => {
   const links = [];
   const lines = source.replace(/\r\n/gu, '\n').split('\n');
   let fence = undefined;
@@ -119,7 +104,7 @@ const collectLinks = (source, includeExternal = false) => {
     for (const match of line.matchAll(expression)) {
       const raw = (match[1] ?? '').trim();
       const target = normalizeMarkdownTarget(raw);
-      if (!target || (!includeExternal && isExternalTarget(target))) {
+      if (!target || isExternalTarget(target)) {
         continue;
       }
       links.push({ target, line: index + 1 });
@@ -296,56 +281,23 @@ for (const [label, entries] of publicationEntries) {
   });
 }
 
-test('canonical consumer pages are present and published', () => {
+test('docs directory contains only canonical consumer pages', () => {
+  const docsMarkdown = walk(path.join(repoRoot, 'docs'))
+    .filter((filePath) => path.extname(filePath).toLowerCase() === '.md')
+    .map(relative)
+    .sort();
+  const expected = [...canonicalConsumerDocs].sort();
+
+  assert.deepEqual(docsMarkdown, expected);
+});
+
+test('canonical consumer pages are published', () => {
   for (const requiredPath of canonicalConsumerDocs) {
-    assert.equal(fs.existsSync(path.join(repoRoot, requiredPath)), true, `missing ${requiredPath}`);
     for (const [label, entries] of publicationEntries) {
       assert.equal(
         manifestIncludesPath(requiredPath, entries),
         true,
         `${requiredPath} must be included in the ${label} package`
-      );
-    }
-  }
-});
-
-test('consumer documentation stays on canonical pages', () => {
-  const docsMarkdown = walk(path.join(repoRoot, 'docs'))
-    .filter((filePath) => path.extname(filePath).toLowerCase() === '.md')
-    .map(relative)
-    .sort();
-  const allowedDocs = new Set([
-    ...canonicalConsumerDocs,
-    ...legacyMovedPages.keys()
-  ]);
-  const unexpected = docsMarkdown.filter((relativePath) => !allowedDocs.has(relativePath));
-
-  assert.deepEqual(
-    unexpected,
-    [],
-    'consumer material must stay on canonical pages; old paths may only be move notices'
-  );
-});
-
-test('legacy documentation paths remain repository-only move notices', () => {
-  for (const [relativePath, target] of legacyMovedPages) {
-    const filePath = path.join(repoRoot, relativePath);
-    assert.equal(fs.existsSync(filePath), true, `missing ${relativePath}`);
-
-    const source = fs.readFileSync(filePath, 'utf8');
-    const links = collectLinks(source, true);
-
-    assert.match(source, /compatibility page is retained/iu, `${relativePath} needs a move notice`);
-    assert.equal(links.length, 1, `${relativePath} must contain exactly one link`);
-    assert.equal(links[0]?.target, target, `${relativePath} must point to ${target}`);
-    assert.equal(source.includes('```'), false, `${relativePath} must not duplicate examples`);
-    assert.ok(source.length < 500, `${relativePath} must stay minimal`);
-
-    for (const [label, entries] of publicationEntries) {
-      assert.equal(
-        manifestIncludesPath(relativePath, entries),
-        false,
-        `${relativePath} must stay out of the ${label} package`
       );
     }
   }
