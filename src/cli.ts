@@ -13,6 +13,9 @@ const usage = `Usage:
   dir-archiver normalize --input <archive> --output <archive> [--safety-profile compatible|strict|untrusted]
 
 Options:
+  -s, --source <path>                  Source file or directory for write
+  -i, --input <archive>                Input archive for read commands
+  -o, --output <path>                  Output archive or extraction directory
   --format <format>                     Read: zip|tar|gz|tgz|tar.gz|bz2|tar.bz2|zst|br|tar.zst|tar.br|xz|tar.xz
                                         Write: zip|tar|tgz|tar.gz|tar.zst|tar.br
   --safety-profile <profile>            compatible|strict|untrusted

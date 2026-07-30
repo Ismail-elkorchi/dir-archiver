@@ -44,6 +44,8 @@ Bytefold reports no longer contain `schemaVersion`.
 - Replace profile values `compat` and `agent` with `compatible` and
   `untrusted`.
 - Remove spelling aliases such as `--src` and `--dest`.
+- Use only `-s`, `-i`, and `-o` as short forms for `--source`, `--input`, and
+  `--output`.
 - Remove `--allow-hardlinks`.
 - Reject duplicate scalar options and options irrelevant to the command.
 - Require one `--exclude` occurrence for each exclusion.

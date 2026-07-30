@@ -59,7 +59,11 @@ checks cannot make an arbitrary existing filesystem tree safe.
 
 Symlinks are skipped by default. `allowSymlinks: true` permits only non-empty,
 relative targets without `..`; the selected Bytefold profile can still reject
-the archive before materialization. Hard links are always rejected.
+the archive before materialization. `.` is a valid target for the symlink's
+containing directory. Hard links are always rejected.
+
+Only directory entries may resolve to the extraction root. A regular file or
+link with a name such as `.` is rejected before filesystem materialization.
 
 ## Limits
 

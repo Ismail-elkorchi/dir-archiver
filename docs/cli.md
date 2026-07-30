@@ -23,9 +23,9 @@ A command is always required. There is no implicit write mode.
 
 | Option | Commands | Meaning |
 | --- | --- | --- |
-| `--input <archive>` | read commands | Input path or URL. |
-| `--source <path>` | `write` | Source file or directory. |
-| `--output <path>` | `write`, `extract`, `normalize` | Destination path. |
+| `--input <archive>`, `-i <archive>` | read commands | Input path or URL. |
+| `--source <path>`, `-s <path>` | `write` | Source file or directory. |
+| `--output <path>`, `-o <path>` | `write`, `extract`, `normalize` | Destination path. |
 | `--format <format>` | all | Force read or write format. |
 | `--safety-profile <profile>` | read commands | `compatible`, `strict`, or `untrusted`. |
 | `--json` | all | Emit machine-readable output. |
@@ -43,6 +43,9 @@ and `tar.xz`.
 Boolean options do not consume a following token. Scalar duplicates, unknown
 flags, unsupported values, irrelevant options, extra positionals, and
 arguments after `--` are errors.
+
+Only the frequently used path options have short forms. Alternative long
+spellings such as `--src` and `--dest` are not accepted.
 
 ## Examples
 

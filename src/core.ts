@@ -220,7 +220,11 @@ export const extract = async (
     let totalExtractedBytes = 0;
 
     for await (const entry of reader.entries()) {
-      const destinationPath = resolveEntryDestination(destinationRoot, entry.name);
+      const destinationPath = resolveEntryDestination(
+        destinationRoot,
+        entry.name,
+        entry.isDirectory
+      );
 
       if (entry.isDirectory) {
         await fsPromises.mkdir(destinationPath, { recursive: true });
@@ -455,15 +459,19 @@ const createExcludePredicate = (
   const caseInsensitive = process.platform === 'win32';
 
   for (const rawExclude of excludes) {
+    const portableExclude = rawExclude.replace(/\\/g, '/');
     const isWindowsAbsolutePath = /^[a-zA-Z]:[\\/]/u.test(rawExclude);
+    const hasParentComponent = portableExclude
+      .split('/')
+      .some((component) => component === '..');
+    const hasSeparator = portableExclude.includes('/');
     const normalizedExclude = path.normalize(
-      rawExclude.replace(/\\/g, path.sep)
+      portableExclude.replace(/\//g, path.sep)
     );
     if (
       rawExclude.length === 0
       || normalizedExclude === '.'
-      || normalizedExclude === '..'
-      || normalizedExclude.startsWith(`..${path.sep}`)
+      || hasParentComponent
       || isWindowsAbsolutePath
       || path.isAbsolute(normalizedExclude)
     ) {
@@ -471,8 +479,10 @@ const createExcludePredicate = (
         'Each exclusion must be a non-empty source-relative basename or path.'
       );
     }
-    const hasSeparator = normalizedExclude.includes(path.sep);
-    const normalizedValue = normalizeCase(normalizedExclude, caseInsensitive);
+    const sourceRelativePath = normalizedExclude.endsWith(path.sep)
+      ? normalizedExclude.slice(0, -1)
+      : normalizedExclude;
+    const normalizedValue = normalizeCase(sourceRelativePath, caseInsensitive);
     excludedPaths.add(normalizedValue);
     if (!hasSeparator) {
       excludedNames.add(normalizedValue);
@@ -571,8 +581,18 @@ const normalizeArchiveEntryName = (entryName: string): string => {
   return parts.join('/');
 };
 
-const resolveEntryDestination = (destinationRoot: string, entryName: string): string => {
+const resolveEntryDestination = (
+  destinationRoot: string,
+  entryName: string,
+  entryIsDirectory: boolean
+): string => {
   const safeRelative = normalizeArchiveEntryName(entryName);
+  if (safeRelative.length === 0 && !entryIsDirectory) {
+    throw new DirArchiverError(
+      'DIRARCHIVER_UNSUPPORTED_ENTRY',
+      `Non-directory archive entry "${entryName}" resolves to the extraction root.`
+    );
+  }
   const resolved = path.resolve(destinationRoot, safeRelative);
   if (resolved !== destinationRoot && !resolved.startsWith(`${destinationRoot}${path.sep}`)) {
     throw new DirArchiverError(
@@ -598,7 +618,7 @@ const normalizeSymlinkTarget = (linkName: string): string => {
       `Symlink target "${linkName}" escapes extraction root.`
     );
   }
-  return parts.join('/');
+  return parts.length === 0 ? '.' : parts.join('/');
 };
 
 const readAllBytes = async (

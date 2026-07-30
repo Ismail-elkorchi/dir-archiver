@@ -44,15 +44,15 @@ test('write and extract commands succeed in JSON mode', () => {
     writeFileSync(path.join(source, 'hello.txt'), 'hello');
 
     const archive = path.join(tmpRoot, 'archive.zip');
-    const writeResult = runCli(['write', '--source', source, '--output', archive, '--json']);
+    const writeResult = runCli(['write', '-s', source, '-o', archive, '--json']);
     assert.equal(writeResult.status, 0);
 
     const extracted = path.join(tmpRoot, 'out');
     const extractResult = runCli([
       'extract',
-      '--input',
+      '-i',
       archive,
-      '--output',
+      '-o',
       extracted,
       '--safety-profile',
       'strict',
@@ -75,7 +75,7 @@ test('duplicate scalar options fail instead of silently selecting a value', () =
     'detect',
     '--input',
     'first.zip',
-    '--input',
+    '-i',
     'second.zip',
     '--json'
   ]);

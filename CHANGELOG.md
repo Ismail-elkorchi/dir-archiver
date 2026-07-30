@@ -13,10 +13,11 @@
 * Use Bytefold's `ArchiveInput` and `ArchiveWriterFormat` names directly, clarify public byte and count field names, and report materialized symlink counts.
 * Reject malformed exclusions and destructive writes through filesystem aliases.
 * Release destination file handles after normalization failures.
-* Compile the CLI grammar once, reject duplicates and irrelevant options, preserve indexed parser diagnostics, and remove spelling aliases and implicit command inference.
+* Compile the CLI grammar once, reject duplicates and irrelevant options, preserve indexed parser diagnostics, remove alternative long spellings and implicit command inference, and retain only `-s`, `-i`, and `-o` as short forms.
 * Audit every extraction before creating its destination and use `isSafe` report semantics.
 * Collect source entries before opening the destination so an archive inside its source is not included in itself.
 * Abort archive writers after source or entry failures so partial output is released without being finalized.
+* Reject parent-traversing exclusions before normalization, preserve exact trailing-separator directory exclusions, and handle root-resolving entries and `.` symlink targets deterministically.
 * Document migration steps in `BREAKING_CHANGES.md`.
 * Consolidate consumer documentation around the README and focused API, CLI, safety, formats, and troubleshooting guides.
 * Correct Deno installation, CLI audit-gate, output-stream, runtime-format, alias, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
