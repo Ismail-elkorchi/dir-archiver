@@ -8,7 +8,9 @@
 * Remove duplicated recipe, maintainer, and compatibility-page documentation so `docs/` contains only the canonical consumer guides.
 * Publish only the canonical consumer guides in npm and JSR packages.
 * Align exported option and error JSDoc with current v3 behavior.
-* Add automated checks for local Markdown links, heading anchors, publication boundaries, canonical page ownership, and CLI documentation drift.
+* Validate local Markdown links, publication boundaries, CLI documentation, public TypeScript signatures, and packed-package consumption.
+* Remove obsolete tests and duplicated repository automation while preserving behavior, security coverage, and macOS and Windows filesystem testing.
+* Update the development toolchain and GitHub Actions while retaining TypeScript 6 and the supported runtime floors.
 * Keep archive runtime behavior and CLI semantics unchanged.
 
 ### 3.0.2 (June 19, 2026)

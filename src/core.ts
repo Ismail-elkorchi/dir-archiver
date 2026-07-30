@@ -1,12 +1,9 @@
 import {
-  createReadStream,
   createWriteStream,
-  existsSync,
-  promises as fsPromises,
-  statSync
+  promises as fsPromises
 } from 'node:fs';
 import path from 'node:path';
-import { Readable, Writable } from 'node:stream';
+import { Writable } from 'node:stream';
 import type {
   ArchiveAuditReport,
   ArchiveFormat,
@@ -753,18 +750,6 @@ const inferFormatFromDestination = (destinationPath: string): ArchiveFormat | un
   if (lower.endsWith('.br')) return 'br';
   return undefined;
 };
-
-export const copyStreamToFile = async (source: string, destination: string): Promise<void> => {
-  await ensureParentDirectory(destination);
-  const nodeReadable = createReadStream(source);
-  const webReadable = Readable.toWeb(nodeReadable) as ReadableStream<Uint8Array>;
-  const bytes = await readAllBytes(webReadable);
-  await fsPromises.writeFile(destination, bytes);
-};
-
-export const pathExists = (value: string): boolean => existsSync(value);
-
-export const fileSize = (value: string): number => statSync(value).size;
 
 const disposeArchiveReader = async (reader: ArchiveReader): Promise<void> => {
   const withAsyncDispose = reader as {
