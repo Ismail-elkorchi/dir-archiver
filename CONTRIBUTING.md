@@ -1,7 +1,7 @@
 # Contributing
 
 Repository development requires Node.js 24 or newer. The complete cross-runtime
-check also requires current Deno and Bun installations.
+check also requires Deno and Bun.
 
 ```sh
 npm ci
@@ -12,15 +12,14 @@ npm run check
 security tests, the examples, and offline packed-package tests in Node.js,
 Deno, and Bun.
 
-Keep changes focused:
+For behavior changes:
 
 - add a regression test for every bug fix or behavior change;
-- update `CONTRACT.md` when a public API, CLI, result, error, or guarantee changes;
-- update user documentation and `CHANGELOG.md` for release-relevant changes;
+- update the relevant public guide and `BREAKING_CHANGES.md` when the public
+  contract changes;
+- update `CHANGELOG.md` for release-relevant changes;
 - preserve ESM packaging and Node.js, Deno, and Bun behavior;
-- keep archive destinations outside their source directories in examples;
 - use a fresh staging directory when demonstrating untrusted extraction.
 
-Run `npm run check` before opening a pull request. CI repeats it on Linux and
-runs the Node.js test suite on macOS and Windows for filesystem-sensitive
-behavior.
+CI runs the complete check on Linux and filesystem-sensitive behavior tests on
+macOS and Windows.

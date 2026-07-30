@@ -1,25 +1,40 @@
 # Changes to Dir Archiver
 
-### Unreleased
+## Unreleased
 
-* Rebuild the consumer documentation around seven canonical pages for onboarding, API, CLI, safety, formats, and troubleshooting.
+* Migrate to Bytefold 0.9 and argv-flags 2.
+* Replace runtime subpath dispatch with Bytefold's conditional root entrypoint.
+* Remove obsolete runtime adapters from source and packed build output.
+* Remove the live-reader `open()` API, default export, CLI `open` command, and unused public types.
+* Replace legacy safety-profile names and fields with `safetyProfile: "compatible" | "strict" | "untrusted"`.
+* Replace loose placeholder types and TypeScript assertions with exact dependency contracts.
+* Enable additional TypeScript checks for unused, unreachable, side-effect-only, and non-erasable code.
+* Restrict writes to actual archive writer formats and remove ignored options and result fields.
+* Use Bytefold's `ArchiveInput` and `ArchiveWriterFormat` names directly, clarify public byte and count field names, and report materialized symlink counts.
+* Reject malformed exclusions and destructive writes through filesystem aliases.
+* Release destination file handles after normalization failures.
+* Compile the CLI grammar once, reject duplicates and irrelevant options, preserve indexed parser diagnostics, and remove spelling aliases and implicit command inference.
+* Audit every extraction before creating its destination and use `isSafe` report semantics.
+* Collect source entries before opening the destination so an archive inside its source is not included in itself.
+* Abort archive writers after source or entry failures so partial output is released without being finalized.
+* Document migration steps in `BREAKING_CHANGES.md`.
+* Consolidate consumer documentation around the README and focused API, CLI, safety, formats, and troubleshooting guides.
 * Correct Deno installation, CLI audit-gate, output-stream, runtime-format, alias, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
 * Replace Unix-only onboarding commands with a self-contained cross-platform example for Node.js, Deno, and Bun consumers.
 * Remove duplicated recipe, maintainer, and compatibility-page documentation so `docs/` contains only the canonical consumer guides.
 * Publish only the canonical consumer guides in npm and JSR packages.
-* Align exported option and error JSDoc with current v3 behavior.
-* Validate local Markdown links, publication boundaries, CLI documentation, public TypeScript signatures, and packed-package consumption.
+* Align exported option and error JSDoc with the new public behavior.
+* Validate local Markdown links, publication boundaries, public TypeScript signatures, and packed-package consumption.
 * Remove obsolete tests and duplicated repository automation while preserving behavior, security coverage, and macOS and Windows filesystem testing.
 * Update the development toolchain and GitHub Actions while retaining TypeScript 6 and the supported runtime floors.
-* Keep archive runtime behavior and CLI semantics unchanged.
 
-### 3.0.2 (June 19, 2026)
+## 3.0.2 (June 19, 2026)
 
 * Fix JSR documentation checks for current and pinned Deno doc output.
 * Update `argv-flags` to 1.0.5.
 * Bump GitHub Actions dependencies in CI and release workflows.
 
-### 3.0.1 (March 3, 2026)
+## 3.0.1 (March 3, 2026)
 
 * Rework README/docs information architecture for fast first-use onboarding.
 * Expand the CLI documentation as the canonical command/flag/output reference.
@@ -27,7 +42,7 @@
 * Add example doc blocks (Goal/Prereqs/Run/Expected output/Safety notes) for each example file.
 * Keep archive runtime behavior and CLI semantics unchanged.
 
-### 3.0.0 (February 28, 2026)
+## 3.0.0 (February 28, 2026)
 
 * Rewrite dir-archiver as a bytefold-backed orchestration layer over `open`, `detect`, `list`, `audit`, `extract`, `normalize`, and `write`.
 * Expand format support to the full bytefold `ArchiveFormat` surface (zip/tar/layered codecs).
@@ -40,7 +55,7 @@
 * Align dependency source to released `@ismail-elkorchi/bytefold@^0.7.2` (remove local/git-sha dependency path).
 * Bump runtime floor to Node.js >=24 and keep Deno/Bun support through dedicated runtime checks.
 
-### 2.2.0 (January 28, 2026)
+## 2.2.0 (January 28, 2026)
 
 * Migrate source to TypeScript with strict compiler options.
 * Build compiled output into `dist/` with declaration files.
@@ -59,51 +74,51 @@
 * Improve error handling for archive creation failures.
 * Bump argv-flags to 0.2.1 (inline flag values).
 
-### 2.1.2 (January 28, 2026)
+## 2.1.2 (January 28, 2026)
 
 * Add a smoke test suite and npm test script.
 * Add CI to run linting and tests.
 * Declare Node.js >=14 in package metadata.
 
-### 2.1.1 (January 28, 2026)
+## 2.1.1 (January 28, 2026)
 
 * Avoid archiving the destination zip when it lives inside the source directory ([#5](https://github.com/Ismail-elkorchi/dir-archiver/issues/5)).
 * `createZip()` now returns a Promise that resolves when the archive is closed ([#13](https://github.com/Ismail-elkorchi/dir-archiver/pull/13)).
 * Bump archiver to 7.0.1 to address dependency deprecation warnings ([#14](https://github.com/Ismail-elkorchi/dir-archiver/pull/14)).
 
-### 2.1.0 (October 25, 2022)
+## 2.1.0 (October 25, 2022)
 
 * Add ESLint ([#12](https://github.com/Ismail-elkorchi/dir-archiver/pull/12)).
 * Several enhancements to better support Microsoft Windows ([Diff](https://github.com/Ismail-elkorchi/dir-archiver/compare/2.0.0...v2.1.0)).
 
-### 2.0.0 (September 20, 2022)
+## 2.0.0 (September 20, 2022)
 
 * Bump archiver from 5.2.0 to 5.3.1 ([42c30b7](https://github.com/Ismail-elkorchi/dir-archiver/commit/42c30b7a3b7fa0b3101e21559f1774f45d2f06ce)).
 * Add an option to include the base directory in the archive root ([#11](https://github.com/Ismail-elkorchi/dir-archiver/pull/11)).
 
-### 1.2.0 (February 28, 2021)
+## 1.2.0 (February 28, 2021)
 
 * Bump archiver from 4.0.2 to 5.2.0 ([b84c347](https://github.com/Ismail-elkorchi/dir-archiver/commit/b84c34731617c57b7c439f15910fcc8fa00747b2)).
 * Make exclude paths relative to run directory ([#4](https://github.com/Ismail-elkorchi/dir-archiver/pull/4)).
 * Remove the destination zip if it exists already ([#7](https://github.com/Ismail-elkorchi/dir-archiver/pull/7)).
 
-### 1.1.2 (July 21, 2020)
+## 1.1.2 (July 21, 2020)
 
 * Bump lodash from 4.17.15 to 4.17.19.
 * Bump archiver from 4.0.1 to 4.0.2.
 
-### 1.1.1 (May 14, 2020)
+## 1.1.1 (May 14, 2020)
 
 * CLI : prevent execution if the required arguments are missing.
 
-### 1.1.0 (May 13, 2020)
+## 1.1.0 (May 13, 2020)
 
 * Add cli script.
 
-### 1.0.1 (May 12, 2020)
+## 1.0.1 (May 12, 2020)
 
 * Fix the installation instructions.
 
-### 1.0.0 (May 12, 2020)
+## 1.0.0 (May 12, 2020)
 
 * initial release.

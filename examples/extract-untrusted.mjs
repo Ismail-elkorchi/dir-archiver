@@ -1,18 +1,8 @@
-/**
- * Goal: Demonstrate audit-first extraction and deterministic resource-limit failure.
- * Prereqs:
- * - Run from repo root after `npm run build`.
- * Run:
- * - `node examples/extract-untrusted.mjs`
- * Expected output:
- * - JSON object with `{ ok: true, auditOk: true, expectedLimitFailureCode: "DIRARCHIVER_RESOURCE_LIMIT" }`.
- * Safety notes:
- * - Uses temporary fixtures and strict extraction limits; no network access.
- */
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { audit, extract, write } from "../dist/index.js";
+import { pathToFileURL } from "node:url";
+import { DirArchiverError, audit, extract, write } from "../dist/index.js";
 
 function makeSource(root) {
   const source = path.join(root, "payload");
@@ -28,29 +18,27 @@ export async function run() {
     const archivePath = path.join(root, "input.zip");
     await write(source, archivePath, { includeBaseDirectory: false, format: "zip" });
 
-    const report = await audit(archivePath, { profile: "agent" });
-    if (!report.ok) {
+    const report = await audit(archivePath, { safetyProfile: "untrusted" });
+    if (!report.isSafe) {
       throw new Error("Expected audit to pass for fixture archive.");
     }
 
     let limitFailureCode = null;
     try {
       await extract(archivePath, path.join(root, "out"), {
-        profile: "strict",
+        safetyProfile: "strict",
         maxTotalExtractedBytes: 16,
       });
     } catch (error) {
-      if (error && typeof error === "object" && "code" in error) {
-        limitFailureCode = String(error.code);
-      } else {
-        limitFailureCode = "UNKNOWN_ERROR";
+      if (!(error instanceof DirArchiverError)) {
+        throw error;
       }
+      limitFailureCode = error.code;
     }
 
     const payload = {
-      ok: true,
-      auditOk: report.ok,
-      expectedLimitFailureCode: limitFailureCode,
+      isSafe: report.isSafe,
+      limitFailureCode,
     };
     console.log(JSON.stringify(payload, null, 2));
     return payload;
@@ -59,6 +47,9 @@ export async function run() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] !== undefined
+  && import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await run();
 }

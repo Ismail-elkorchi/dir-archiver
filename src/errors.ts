@@ -1,20 +1,12 @@
 /**
- * Stable machine-readable error-code names emitted or reserved by
- * `dir-archiver`.
+ * Stable machine-readable error-code names emitted by `dir-archiver`.
  *
- * - `DIRARCHIVER_INVALID_SOURCE`: reserved for invalid source input. Some
- *   current filesystem and dependency source failures still surface as native
- *   errors.
- * - `DIRARCHIVER_INVALID_DESTINATION`: reserved for invalid destinations. Some
- *   current filesystem destination failures still surface as native errors.
  * - `DIRARCHIVER_PATH_TRAVERSAL`: extraction rejected an empty, absolute,
  *   drive-prefixed, `..`, out-of-root, or unsafe symlink-target path.
- * - `DIRARCHIVER_UNSUPPORTED_ENTRY`: an audit, entry type, link, or writer
- *   capability is unsupported by the wrapper policy.
+ * - `DIRARCHIVER_UNSUPPORTED_ENTRY`: an audit, entry type, or link is
+ *   unsupported by package policy.
  * - `DIRARCHIVER_RESOURCE_LIMIT`: extraction exceeded an explicit
  *   materialization byte limit.
- * - `DIRARCHIVER_RUNTIME_UNSUPPORTED`: the current JavaScript runtime is not a
- *   supported Node.js, Deno, or Bun environment.
  * - `DIRARCHIVER_NORMALIZE_UNSUPPORTED`: the opened archive reader does not
  *   expose normalization.
  * - `DIRARCHIVER_USAGE`: CLI invocation is missing required flags or uses
@@ -25,12 +17,9 @@
  * errors.
  */
 export type DirArchiverErrorCode =
-  | 'DIRARCHIVER_INVALID_SOURCE'
-  | 'DIRARCHIVER_INVALID_DESTINATION'
   | 'DIRARCHIVER_PATH_TRAVERSAL'
   | 'DIRARCHIVER_UNSUPPORTED_ENTRY'
   | 'DIRARCHIVER_RESOURCE_LIMIT'
-  | 'DIRARCHIVER_RUNTIME_UNSUPPORTED'
   | 'DIRARCHIVER_NORMALIZE_UNSUPPORTED'
   | 'DIRARCHIVER_USAGE';
 
@@ -40,7 +29,7 @@ export type DirArchiverErrorCode =
  * This is the machine-readable error envelope used by the CLI for known
  * package failures and by API consumers that serialize `DirArchiverError`.
  */
-export interface DirArchiverErrorJson {
+export type DirArchiverErrorJson = {
   /** Schema version for the serialized error payload. */
   schemaVersion: '1';
   /** Stable error class name used in serialized output. */
@@ -53,10 +42,10 @@ export interface DirArchiverErrorJson {
   hint?: string;
   /** Optional structured context for logs and diagnostics. */
   context?: Record<string, unknown>;
-}
+};
 
 /**
- * Structured package error contract for dir-archiver v3.
+ * Structured package error contract.
  */
 export class DirArchiverError extends Error {
   /** Stable machine-readable package code. */
@@ -82,14 +71,14 @@ export class DirArchiverError extends Error {
       cause?: unknown;
     } = {}
   ) {
-    super(message);
+    super(
+      message,
+      options.cause === undefined ? undefined : { cause: options.cause }
+    );
     this.name = 'DirArchiverError';
     this.code = code;
     this.hint = options.hint;
     this.context = options.context;
-    if (options.cause !== undefined) {
-      (this as { cause?: unknown }).cause = options.cause;
-    }
   }
 
   /**
@@ -104,8 +93,8 @@ export class DirArchiverError extends Error {
       name: 'DirArchiverError',
       code: this.code,
       message: this.message,
-      ...(this.hint ? { hint: this.hint } : {}),
-      ...(this.context ? { context: this.context } : {})
+      ...(this.hint === undefined ? {} : { hint: this.hint }),
+      ...(this.context === undefined ? {} : { context: this.context })
     };
   }
 }

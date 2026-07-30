@@ -9,10 +9,10 @@ module.exports = [
 	},
 	{
 		languageOptions: {
-			ecmaVersion: 2021,
+			ecmaVersion: 'latest',
 			globals: {
 				...globals.node,
-				...globals.es2021
+				...globals.es2024
 			}
 		}
 	},
@@ -24,7 +24,7 @@ module.exports = [
 			parserOptions: {
 				project: [ './tsconfig.json', './tsconfig.test.json' ],
 				tsconfigRootDir: __dirname,
-				ecmaVersion: 2021,
+				ecmaVersion: 'latest',
 				sourceType: 'module'
 			}
 		},
@@ -43,6 +43,7 @@ module.exports = [
 				}
 			],
 			'@typescript-eslint/consistent-type-exports': 'error',
+			'@typescript-eslint/consistent-type-definitions': [ 'error', 'type' ],
 			'@typescript-eslint/no-unused-vars': [
 				'error',
 				{
@@ -70,7 +71,7 @@ module.exports = [
 	{
 		files: [ '**/*.js' ],
 		languageOptions: {
-			ecmaVersion: 2021,
+			ecmaVersion: 2024,
 			sourceType: 'script'
 		}
 	},

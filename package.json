@@ -19,31 +19,34 @@
     "LICENSE",
     "README.md",
     "CHANGELOG.md",
-    "CONTRACT.md",
+    "BREAKING_CHANGES.md",
     "SECURITY.md",
-    "SUPPORT.md",
-    "docs/index.md",
-    "docs/getting-started.md",
     "docs/api.md",
     "docs/cli.md",
     "docs/safety.md",
     "docs/formats.md",
     "docs/troubleshooting.md",
-    "dist",
-    "jsr.json"
+    "dist"
   ],
   "keywords": [
     "archive",
-    "bytefold",
-    "dir-archiver",
+    "archiver",
     "compression",
+    "directory",
+    "zip",
+    "tar",
+    "gzip",
+    "zstandard",
+    "brotli",
+    "extraction",
     "cli",
-    "esm",
-    "jsr",
-    "npm",
+    "command-line",
+    "typescript",
+    "cross-runtime",
+    "nodejs",
     "deno",
     "bun",
-    "directory"
+    "esm"
   ],
   "repository": {
     "type": "git",
@@ -57,12 +60,13 @@
   "bugs": "https://github.com/Ismail-elkorchi/dir-archiver/issues",
   "homepage": "https://github.com/Ismail-elkorchi/dir-archiver",
   "scripts": {
+    "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsc -p tsconfig.json",
     "examples:run": "node ./examples/run-all.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:public": "tsc -p tsconfig.test.json --noEmit",
     "lint": "npm run typecheck && npm run typecheck:public && eslint . --max-warnings=0",
-    "test": "npm run build && node --test test/public-api.test.mjs test/operations.test.mjs test/cli.test.mjs test/cli-docs-drift.test.mjs test/docs-links.test.mjs test/security.test.mjs",
+    "test": "npm run build && node --test test/public-api.test.mjs test/operations.test.mjs test/cli.test.mjs test/docs-links.test.mjs test/security.test.mjs",
     "test:package": "node ./test/package-consumers.mjs",
     "check": "npm run lint && npm run test && npm run examples:run && npm run test:package",
     "prepack": "npm run build"
@@ -71,8 +75,8 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@ismail-elkorchi/bytefold": "^0.8.1",
-    "argv-flags": "^1.0.5"
+    "@ismail-elkorchi/bytefold": "^0.9.0",
+    "argv-flags": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

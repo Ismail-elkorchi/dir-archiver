@@ -1,37 +1,35 @@
 #!/usr/bin/env node
 
-import { audit, detect, extract, list, normalize, open, write } from './index.js';
-import { DirArchiverError } from './errors.js';
-import { parseCliArgs } from './cli-args.js';
+import { audit, detect, extract, list, normalize, write } from './index.ts';
+import { DirArchiverError } from './errors.ts';
+import { parseCliArgs } from './cli-args.ts';
 
 const usage = `Usage:
-  dir-archiver write --source <path> --output <archive> [--format <format>] [--include-base-directory] [--exclude <path>...]
-  dir-archiver open --input <archive> [--profile compat|strict|agent]
+  dir-archiver write --source <path> --output <archive> [--format <format>] [--include-base-directory] [--exclude <path>]...
   dir-archiver detect --input <archive>
   dir-archiver list --input <archive>
-  dir-archiver audit --input <archive> [--profile compat|strict|agent]
-  dir-archiver extract --input <archive> --output <directory> [--profile compat|strict|agent] [--max-entry-bytes <n>] [--max-total-extracted-bytes <n>]
-  dir-archiver normalize --input <archive> --output <archive> [--profile compat|strict|agent]
+  dir-archiver audit --input <archive> [--safety-profile compatible|strict|untrusted]
+  dir-archiver extract --input <archive> --output <directory> [--safety-profile compatible|strict|untrusted] [--max-extracted-file-bytes <n>] [--max-total-extracted-bytes <n>]
+  dir-archiver normalize --input <archive> --output <archive> [--safety-profile compatible|strict|untrusted]
 
-Common options:
-  --format <format>                     zip|tar|tgz|tar.gz|gz|bz2|tar.bz2|zst|tar.zst|br|tar.br|xz|tar.xz
-  --profile <profile>                   compat|strict|agent
-  --json                                emit machine-readable JSON
-  --allow-symlinks                      enable symlink extraction
-  --allow-hardlinks                     enable hardlink extraction (currently unsupported)
+Options:
+  --format <format>                     Read: zip|tar|gz|tgz|tar.gz|bz2|tar.bz2|zst|br|tar.zst|tar.br|xz|tar.xz
+                                        Write: zip|tar|tgz|tar.gz|tar.zst|tar.br
+  --safety-profile <profile>            compatible|strict|untrusted
+  --json                                Emit machine-readable JSON
+  --allow-symlinks                      Materialize safe relative symlinks during extraction
 `;
 
 const run = async (): Promise<number> => {
-  const parsed = await parseCliArgs(process.argv.slice(2));
-  const command = parsed.command;
-  if (!parsed.ok || !command) {
+  const parsed = parseCliArgs(process.argv.slice(2));
+  if (!parsed.success) {
     const payload = {
       schemaVersion: '1',
       code: 'DIRARCHIVER_USAGE',
       message: 'Invalid CLI arguments.',
       issues: parsed.issues
     };
-    if (parsed.json) {
+    if (parsed.useJsonOutput) {
       console.log(JSON.stringify(payload));
     } else {
       console.error(usage);
@@ -42,98 +40,73 @@ const run = async (): Promise<number> => {
     return 2;
   }
 
-  const commonOptions = {
-    profile: parsed.profile,
-    ...(parsed.format ? { format: parsed.format } : {})
-  };
-
-  switch (command) {
+  switch (parsed.command) {
     case 'write': {
-      const result = await write(
-        requireString(parsed.source, 'write requires --source/--src'),
-        requireString(parsed.output, 'write requires --output/--dest'),
-        {
-          ...commonOptions,
-          includeBaseDirectory: parsed.includeBaseDirectory,
-          followSymlinks: parsed.followSymlinks,
-          exclude: parsed.exclude
-        }
-      );
-      outputResult(parsed.json, result);
-      return 0;
-    }
-    case 'open': {
-      const reader = await open(requireString(parsed.input, 'open requires --input'), commonOptions);
-      outputResult(parsed.json, {
-        format: reader.format,
-        detection: reader.detection
+      const result = await write(parsed.source, parsed.destination, {
+        ...(parsed.format === undefined ? {} : { format: parsed.format }),
+        includeBaseDirectory: parsed.includeBaseDirectory,
+        followSymlinks: parsed.followSymlinks,
+        exclude: parsed.exclude
       });
+      printResult(parsed.useJsonOutput, result);
       return 0;
     }
     case 'detect': {
-      const result = await detect(requireString(parsed.input, 'detect requires --input'), commonOptions);
-      outputResult(parsed.json, result);
+      const result = await detect(parsed.input, {
+        ...(parsed.format === undefined ? {} : { format: parsed.format }),
+        safetyProfile: parsed.safetyProfile
+      });
+      printResult(parsed.useJsonOutput, result);
       return 0;
     }
     case 'list': {
-      const result = await list(requireString(parsed.input, 'list requires --input'), commonOptions);
-      outputResult(parsed.json, result);
+      const result = await list(parsed.input, {
+        ...(parsed.format === undefined ? {} : { format: parsed.format }),
+        safetyProfile: parsed.safetyProfile
+      });
+      printResult(parsed.useJsonOutput, result);
       return 0;
     }
     case 'audit': {
-      const result = await audit(requireString(parsed.input, 'audit requires --input'), commonOptions);
-      outputResult(parsed.json, result);
+      const result = await audit(parsed.input, {
+        ...(parsed.format === undefined ? {} : { format: parsed.format }),
+        safetyProfile: parsed.safetyProfile
+      });
+      printResult(parsed.useJsonOutput, result);
       return 0;
     }
     case 'extract': {
-      const result = await extract(
-        requireString(parsed.input, 'extract requires --input'),
-        requireString(parsed.output, 'extract requires --output'),
-        {
-          ...commonOptions,
-          allowSymlinks: parsed.allowSymlinks,
-          allowHardlinks: parsed.allowHardlinks,
-          ...(typeof parsed.maxEntryBytes === 'number' ? { maxEntryBytes: parsed.maxEntryBytes } : {}),
-          ...(typeof parsed.maxTotalExtractedBytes === 'number'
-            ? { maxTotalExtractedBytes: parsed.maxTotalExtractedBytes }
-            : {})
-        }
-      );
-      outputResult(parsed.json, result);
+      const result = await extract(parsed.input, parsed.destination, {
+        ...(parsed.format === undefined ? {} : { format: parsed.format }),
+        safetyProfile: parsed.safetyProfile,
+        allowSymlinks: parsed.allowSymlinks,
+        ...(parsed.maxExtractedFileBytes === undefined
+          ? {}
+          : { maxExtractedFileBytes: parsed.maxExtractedFileBytes }),
+        ...(parsed.maxTotalExtractedBytes === undefined
+          ? {}
+          : { maxTotalExtractedBytes: parsed.maxTotalExtractedBytes })
+      });
+      printResult(parsed.useJsonOutput, result);
       return 0;
     }
     case 'normalize': {
-      const result = await normalize(
-        requireString(parsed.input, 'normalize requires --input'),
-        requireString(parsed.output, 'normalize requires --output'),
-        {
-          ...commonOptions
-        }
-      );
-      outputResult(parsed.json, result);
+      const result = await normalize(parsed.input, parsed.destination, {
+        ...(parsed.format === undefined ? {} : { format: parsed.format }),
+        safetyProfile: parsed.safetyProfile
+      });
+      printResult(parsed.useJsonOutput, result);
       return 0;
     }
-    default:
-      break;
   }
-
-  const unreachable: never = command;
-  throw new Error(`Unhandled command: ${String(unreachable)}`);
 };
 
-const outputResult = (asJson: boolean, payload: unknown): void => {
+const printResult = (asJson: boolean, payload: unknown): void => {
   if (asJson) {
     console.log(JSON.stringify(payload));
     return;
   }
   console.log(payload);
-};
-
-const requireString = (value: string | undefined, message: string): string => {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new DirArchiverError('DIRARCHIVER_USAGE', message);
-  }
-  return value;
 };
 
 void run()

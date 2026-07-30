@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readdirSync,
@@ -92,8 +93,8 @@ try {
   assert.equal(listing.entries[0]?.name, 'hello.txt');
 
   const destination = path.join(temporaryRoot, 'extracted');
-  const extraction = await extract(archive, destination, { profile: 'strict' });
-  assert.equal(extraction.extractedFiles, 1);
+  const extraction = await extract(archive, destination, { safetyProfile: 'strict' });
+  assert.equal(extraction.extractedFileCount, 1);
   assert.equal(readFileSync(path.join(destination, 'hello.txt'), 'utf8'), runtime);
 
   process.stdout.write(\`\${runtime} packed consumer passed\\n\`);
@@ -102,11 +103,52 @@ try {
 }
 `;
 
+const typeConsumerSource = `
+import type {
+  ArchiveInput,
+  ArchiveWriterFormat,
+  ExtractOptions,
+  ExtractResult,
+  ListEntry,
+  WriteOptions
+} from 'dir-archiver';
+
+declare const input: ArchiveInput;
+declare const format: ArchiveWriterFormat;
+declare const extraction: ExtractResult;
+declare const entry: ListEntry;
+
+const extractOptions = {
+  safetyProfile: 'strict',
+  maxExtractedFileBytes: 1024,
+  maxTotalExtractedBytes: 4096
+} satisfies ExtractOptions;
+const writeOptions = {
+  format: 'tar.zst',
+  exclude: ['node_modules']
+} satisfies WriteOptions;
+
+extraction.extractedFileCount;
+extraction.extractedSymlinkCount;
+entry.sizeInBytes;
+
+// @ts-expect-error removed ambiguous extraction limit
+const oldExtractOptions: ExtractOptions = { maxEntryBytes: 1024 };
+// @ts-expect-error raw compression is not an archive writer format
+const rawCompression: ArchiveWriterFormat = 'gz';
+
+void input;
+void format;
+void extractOptions;
+void writeOptions;
+void oldExtractOptions;
+void rawCompression;
+`;
+
 try {
   mkdirSync(packageDirectory);
   mkdirSync(consumerDirectory);
 
-  const dirArchiverTarball = pack(repositoryRoot);
   const bytefoldTarball = pack(
     path.join(repositoryRoot, 'node_modules', '@ismail-elkorchi', 'bytefold'),
     true
@@ -115,16 +157,43 @@ try {
     path.join(repositoryRoot, 'node_modules', 'argv-flags'),
     true
   );
+  const dirArchiverTarball = pack(repositoryRoot);
 
   writeFileSync(
     path.join(consumerDirectory, 'package.json'),
     `${JSON.stringify({
       name: 'dir-archiver-packed-consumer',
       private: true,
-      type: 'module'
+      type: 'module',
+      dependencies: {
+        'dir-archiver': `file:${dirArchiverTarball}`
+      },
+      overrides: {
+        '@ismail-elkorchi/bytefold': `file:${bytefoldTarball}`,
+        'argv-flags': `file:${argvFlagsTarball}`
+      }
     }, null, 2)}\n`
   );
   writeFileSync(path.join(consumerDirectory, 'consumer.mjs'), consumerSource.trimStart());
+  writeFileSync(
+    path.join(consumerDirectory, 'consumer-types.ts'),
+    typeConsumerSource.trimStart()
+  );
+  writeFileSync(
+    path.join(consumerDirectory, 'tsconfig.json'),
+    `${JSON.stringify({
+      compilerOptions: {
+        target: 'ES2024',
+        lib: ['ES2024', 'ESNext.Disposable', 'DOM'],
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        strict: true,
+        noEmit: true,
+        skipLibCheck: false
+      },
+      include: ['consumer-types.ts']
+    }, null, 2)}\n`
+  );
 
   run(
     npmCommand,
@@ -134,16 +203,37 @@ try {
       '--ignore-scripts',
       '--no-audit',
       '--no-fund',
-      '--no-package-lock',
-      dirArchiverTarball,
-      bytefoldTarball,
-      argvFlagsTarball
+      '--no-package-lock'
     ],
     consumerDirectory,
     {
       npm_config_offline: 'true',
       npm_config_update_notifier: 'false'
     }
+  );
+
+  if (
+    existsSync(
+      path.join(
+        consumerDirectory,
+        'node_modules',
+        'dir-archiver',
+        'dist',
+        'runtime'
+      )
+    )
+  ) {
+    throw new Error('Packed package contains removed runtime adapters.');
+  }
+
+  run(
+    process.execPath,
+    [
+      path.join(repositoryRoot, 'node_modules', 'typescript', 'bin', 'tsc'),
+      '--project',
+      path.join(consumerDirectory, 'tsconfig.json')
+    ],
+    consumerDirectory
   );
 
   const consumerPath = path.join(consumerDirectory, 'consumer.mjs');

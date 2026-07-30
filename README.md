@@ -1,132 +1,113 @@
 # dir-archiver
 
-Create, inspect, audit, normalize, and extract archives through one ESM API.
+Create, inspect, audit, normalize, and extract archives through a small ESM API.
 
-`dir-archiver` supports ZIP, TAR, and layered compression across Node.js, Deno, and Bun. It adds deterministic directory traversal, a small set of task-oriented operations, extraction policy controls, and stable package error codes on top of bytefold.
+`dir-archiver` adds deterministic filesystem traversal, safe extraction, and
+task-level results to [Bytefold](https://github.com/Ismail-elkorchi/bytefold).
+It supports Node.js 24 or newer, Deno, and Bun.
 
-## Requirements and installation
+## Install
 
-| Use | Runtime | Install |
-| --- | --- | --- |
-| JavaScript or TypeScript API | Node.js `>=24` | `npm install dir-archiver` |
-| JavaScript or TypeScript API | Current Bun | `bun add dir-archiver` |
-| JavaScript or TypeScript API | Current Deno | `deno add jsr:@ismail-elkorchi/dir-archiver` |
-| Command-line interface | Node.js `>=24` | Install the npm package, then run `npx dir-archiver` |
-
-Node.js and Bun:
-
-```js
-import { write } from "dir-archiver";
+```sh
+npm install dir-archiver
+bun add dir-archiver
 ```
 
-Deno, after `deno add`:
+For Deno:
 
-```ts
-import { write } from "@ismail-elkorchi/dir-archiver";
+```sh
+deno add jsr:@ismail-elkorchi/dir-archiver
 ```
 
-`deno add` records the JSR package in the project import map. A direct `jsr:@ismail-elkorchi/dir-archiver` import also works when you do not want an import-map entry.
-
-The package is ESM-only. The CLI is the Node.js executable shipped by the npm package; the JSR package provides the API, not the CLI.
-
-## First archive flow
-
-Assume `./project` contains the files to package. Keep the output archive outside that source directory.
+## Example
 
 ```js
-import { extract, list, write } from "dir-archiver";
+import { audit, extract, list, write } from "dir-archiver";
 
-// Create project.zip. The source directory name becomes the archive root,
-// so entries look like project/package.json instead of package.json.
-const created = await write("./project", "./artifacts/project.zip", {
+await write("./project", "./artifacts/project.zip", {
   includeBaseDirectory: true,
-
-  // A basename matches anywhere in the tree. A path containing a separator
-  // matches that exact path relative to ./project. These are not glob patterns.
-  exclude: ["node_modules", ".git", "build/debug.log"],
+  exclude: ["node_modules", ".git"],
 });
 
-console.log({
-  format: created.format,
-  filesWritten: created.entryCount,
-});
-
-// Inspect names and sizes without writing archive entries to disk.
 const inventory = await list("./artifacts/project.zip");
-for (const entry of inventory.entries) {
-  console.log(entry.name, entry.size);
+console.log(inventory.entries);
+
+const report = await audit("./artifacts/project.zip", {
+  safetyProfile: "untrusted",
+});
+if (!report.isSafe) {
+  throw new Error(`Archive rejected: ${JSON.stringify(report.issues)}`);
 }
 
-// Extract into a new, trusted destination directory. Strict is the default,
-// but spelling it out makes the policy visible during review.
-const extracted = await extract("./artifacts/project.zip", "./artifacts/unpacked", {
-  profile: "strict",
-  maxEntryBytes: 64 * 1024 * 1024,
+await extract("./artifacts/project.zip", "./artifacts/unpacked", {
+  safetyProfile: "strict",
+  maxExtractedFileBytes: 64 * 1024 * 1024,
   maxTotalExtractedBytes: 512 * 1024 * 1024,
 });
-
-console.log(extracted);
 ```
 
-`entryCount` counts file entries written by `write()`. The directory writer does not preserve empty directories or source filesystem metadata such as mode and modification time.
-
-For a self-contained runnable example, read [Getting started](docs/getting-started.md).
-
-## Operations
+## API
 
 | Operation | Purpose |
 | --- | --- |
 | `write(source, destination, options?)` | Create an archive from a local file or directory. |
-| `detect(input, options?)` | Resolve the archive format without listing or extracting entries. |
-| `list(input, options?)` | Return JSON-safe entry summaries without extraction. |
-| `audit(input, options?)` | Return an issue report for a selected safety profile. |
-| `extract(input, destination, options?)` | Extract with path checks, link policy, and optional byte limits. |
-| `normalize(input, destination, options?)` | Produce deterministic normalized output when the reader supports it. |
-| `open(input, options?)` | Access the lower-level archive reader for advanced flows. |
+| `detect(input, options?)` | Detect the archive and compression layers. |
+| `list(input, options?)` | Return JSON-safe entry summaries. |
+| `audit(input, options?)` | Return Bytefold's safety report. |
+| `extract(input, destination, options?)` | Audit and extract with path and byte-limit enforcement. |
+| `normalize(input, destination, options?)` | Write deterministic normalized output when supported. |
 
-Read the [API guide](docs/api.md) for signatures, options, return values, and operation-specific caveats.
+The package does not expose Bytefold's live reader. Import Bytefold directly
+when you need entry streams or lower-level reader methods.
+
+`write()` accepts archive writer formats: `zip`, `tar`, `tgz`, `tar.gz`,
+`tar.zst`, and `tar.br`. Read operations also accept Bytefold's read-only and
+raw-compression formats.
 
 ## CLI
 
 ```sh
-npx dir-archiver write --source ./project --output ./artifacts/project.zip --include-base-directory --exclude node_modules --json
+npx dir-archiver write \
+  --source ./project \
+  --output ./artifacts/project.zip \
+  --exclude node_modules \
+  --exclude .git \
+  --json
+
+npx dir-archiver extract \
+  --input ./artifacts/project.zip \
+  --output ./artifacts/unpacked \
+  --safety-profile strict \
+  --json
 ```
 
-```sh
-npx dir-archiver extract --input ./artifacts/project.zip --output ./artifacts/unpacked --profile strict --max-total-extracted-bytes 536870912 --json
-```
+Every option occurrence has one value. Repeat `--exclude` for repeated
+exclusions. Unknown flags, duplicate scalar options, irrelevant options, and
+arguments after `--` are usage errors.
 
-For automation, pass `--json`, keep stdout and stderr separate, and inspect both the process exit code and command payload. In particular, `audit` can exit `0` while returning `{"ok":false}` because the command itself completed successfully. The [CLI guide](docs/cli.md) includes a correct audit-gate example.
+## Operational limits
 
-## Important behavior
-
-- `write()` replaces an existing destination archive, reads each source file into memory before adding it, and can leave a partial destination if a later read or writer operation fails.
-- Keep a write destination outside the source tree. An output created inside the source can be discovered during traversal and included in itself.
-- `followSymlinks: true` follows links encountered during directory traversal and may include content outside the source tree. Use it only for a trusted source layout.
-- `extract()` creates the destination, overwrites matching files, and is not transactional. A failure can leave earlier entries on disk.
-- Extract into a new directory under a trusted parent. Do not extract through pre-existing symlinked path components.
-- Strict extraction performs a pre-extraction audit automatically. A separate `audit()` call is useful when the application needs the report before deciding whether to extract.
-- Read operations report gzip-compressed TAR as `tgz`; `tgz` and `tar.gz` are aliases for the same format family.
-- Layered-TAR normalization currently writes the normalized inner TAR bytes without reapplying compression. Choose the destination extension accordingly.
-- Format capabilities vary by runtime and operation. Deno does not currently provide the same Zstandard and Brotli capabilities as Node.js and Bun.
-- Known package-policy failures use `DirArchiverError.code`. Filesystem and dependency failures can still surface as other error types.
-
-Read [Safety](docs/safety.md) before processing archives from users or external systems, and [Formats](docs/formats.md) before choosing a non-ZIP format or normalization workflow.
+- Writing and extraction are not transactional; use temporary destinations
+  when partial output is unacceptable.
+- Extraction rejects unsafe archive paths and audits before creating the
+  destination. Use a new directory below a trusted parent.
+- Symlink entries are skipped unless `allowSymlinks` is true. Hard links are
+  rejected.
+- `followSymlinks` can archive targets outside the source directory; enable it
+  only for a trusted filesystem layout.
+- Source files and extracted entries are currently buffered in memory.
+- `maxExtractedFileBytes` and `maxTotalExtractedBytes` limit extracted data;
+  Bytefold's `limits` control parsing and decompression.
+- Filesystem, network, cancellation, and Bytefold errors can surface directly.
+  Package policy failures use `DirArchiverError.code`.
 
 ## Documentation
 
-- [Documentation map](docs/index.md)
-- [Getting started](docs/getting-started.md)
-- [API guide](docs/api.md)
-- [CLI guide](docs/cli.md)
+- [API reference](docs/api.md)
+- [CLI reference](docs/cli.md)
 - [Safety](docs/safety.md)
-- [Formats and runtime support](docs/formats.md)
+- [Formats](docs/formats.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Public behavior contract](CONTRACT.md)
-
-## Project information
-
-- [Changelog](CHANGELOG.md)
+- [Breaking changes](BREAKING_CHANGES.md)
 - [Security policy](SECURITY.md)
-- [Support](SUPPORT.md)
-- License: MIT
+- [Changelog](CHANGELOG.md)
