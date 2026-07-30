@@ -192,7 +192,16 @@ test('write rejects invalid exclusions before creating the destination', async (
     mkdirSync(source);
     writeFileSync(path.join(source, 'hello.txt'), 'hello');
 
-    for (const exclusion of ['', '.', '..', '../outside', '/absolute', 'C:\\absolute']) {
+    for (const exclusion of [
+      '',
+      '.',
+      '..',
+      '../outside',
+      'nested/../root.txt',
+      'nested\\..\\root.txt',
+      '/absolute',
+      'C:\\absolute'
+    ]) {
       const archive = path.join(tmpRoot, `${encodeURIComponent(exclusion)}.zip`);
       await assert.rejects(
         write(source, archive, { exclude: [exclusion] }),
@@ -203,6 +212,30 @@ test('write rejects invalid exclusions before creating the destination', async (
       );
       assert.equal(existsSync(archive), false);
     }
+  } finally {
+    removeDir(tmpRoot);
+  }
+});
+
+test('write treats a trailing separator as an exact directory exclusion', async () => {
+  const tmpRoot = mkdtempSync(path.join(tmpdir(), 'dir-archiver-test-'));
+  try {
+    const source = path.join(tmpRoot, 'source');
+    mkdirSync(path.join(source, 'nested'), { recursive: true });
+    mkdirSync(path.join(source, 'other', 'nested'), { recursive: true });
+    writeFileSync(path.join(source, 'nested', 'excluded.txt'), 'excluded');
+    writeFileSync(path.join(source, 'other', 'nested', 'included.txt'), 'included');
+    writeFileSync(path.join(source, 'root.txt'), 'root');
+
+    const archive = path.join(tmpRoot, 'excluded.zip');
+    const result = await write(source, archive, { exclude: ['nested/'] });
+    assert.equal(result.entryCount, 2);
+
+    const listing = await list(archive);
+    assert.deepEqual(
+      listing.entries.map((entry) => entry.name),
+      ['other/nested/included.txt', 'root.txt']
+    );
   } finally {
     removeDir(tmpRoot);
   }

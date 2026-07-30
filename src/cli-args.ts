@@ -9,15 +9,15 @@ import type {
 const CLI_DEFINITIONS = {
   source: {
     type: 'string',
-    flags: ['--source']
+    flags: ['--source', '-s']
   },
   input: {
     type: 'string',
-    flags: ['--input']
+    flags: ['--input', '-i']
   },
   output: {
     type: 'string',
-    flags: ['--output']
+    flags: ['--output', '-o']
   },
   format: {
     type: 'string',

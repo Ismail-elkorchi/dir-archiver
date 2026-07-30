@@ -69,8 +69,9 @@ defaults to ZIP.
 
 An exclusion without a path separator matches that basename anywhere. An
 exclusion with a separator matches one source-relative path. Empty, absolute,
-and parent-traversing exclusions are rejected. Globs are not expanded. A
-single-file source is stored under its basename.
+and parent-traversing exclusions are rejected. A trailing separator denotes
+that exact source-relative directory. Globs are not expanded. A single-file
+source is stored under its basename.
 
 The result contains `format`, absolute `source`, absolute `destination`, and
 `entryCount`.
