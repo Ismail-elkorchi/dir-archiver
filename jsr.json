@@ -6,35 +6,30 @@
     ".": "./src/index.ts"
   },
   "imports": {
-    "@ismail-elkorchi/bytefold": "jsr:@ismail-elkorchi/bytefold@^0.8.1",
-    "@ismail-elkorchi/bytefold/node": "jsr:@ismail-elkorchi/bytefold/node@^0.8.1",
-    "@ismail-elkorchi/bytefold/deno": "jsr:@ismail-elkorchi/bytefold/deno@^0.8.1",
-    "@ismail-elkorchi/bytefold/bun": "jsr:@ismail-elkorchi/bytefold/bun@^0.8.1"
+    "@ismail-elkorchi/bytefold": "jsr:@ismail-elkorchi/bytefold@^0.9.0"
   },
   "publish": {
     "include": [
       "LICENSE",
       "README.md",
       "CHANGELOG.md",
-      "CONTRACT.md",
+      "BREAKING_CHANGES.md",
       "SECURITY.md",
-      "SUPPORT.md",
-      "docs/index.md",
-      "docs/getting-started.md",
       "docs/api.md",
       "docs/cli.md",
       "docs/safety.md",
       "docs/formats.md",
       "docs/troubleshooting.md",
       "src/**",
-      "jsr.json",
-      "package.json"
+      "jsr.json"
     ],
     "exclude": [
       "dist/**",
       "test/**",
       "node_modules/**",
-      ".github/**"
+      ".github/**",
+      "src/cli.ts",
+      "src/cli-args.ts"
     ]
   }
 }

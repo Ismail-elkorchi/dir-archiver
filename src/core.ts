@@ -1,60 +1,31 @@
-import {
-  createWriteStream,
-  promises as fsPromises
-} from 'node:fs';
+import { promises as fsPromises } from 'node:fs';
 import path from 'node:path';
-import { Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
+import {
+  createArchiveWriter,
+  openArchive
+} from '@ismail-elkorchi/bytefold';
 import type {
   ArchiveAuditReport,
-  ArchiveFormat,
+  ArchiveInput,
   ArchiveIssue,
   ArchiveOpenOptions,
   ArchiveReader,
-  ArchiveWriter
+  ArchiveWriterFormat
 } from '@ismail-elkorchi/bytefold';
-import { DirArchiverError } from './errors.js';
-import { loadRuntimeBindings } from './runtime/index.js';
+import { DirArchiverError } from './errors.ts';
 import type {
   DetectResult,
-  DirArchiverInput,
   ExtractOptions,
   ExtractResult,
   ListEntry,
   ListResult,
   NormalizeOptions,
   NormalizeResult,
-  OpenOptions,
+  ReadOptions,
   WriteOptions,
   WriteResult
-} from './types.js';
-
-const DIRECTORY_TO_SINGLE_FILE_CODEC = {
-  gz: 'tar.gz',
-  bz2: 'tar.bz2',
-  xz: 'tar.xz',
-  zst: 'tar.zst',
-  br: 'tar.br'
-} as const satisfies Partial<Record<ArchiveFormat, ArchiveFormat>>;
-
-const writeUnsupportedFormats = new Set<ArchiveFormat>(['tar.bz2', 'bz2', 'tar.xz', 'xz']);
-
-/**
- * Opens an archive and returns the live bytefold reader.
- *
- * Use this when you need direct access to low-level reader capabilities such
- * as `entries()`, `audit()`, or normalization support checks. The returned
- * reader is not auto-disposed, so callers should close or dispose it when the
- * active runtime exposes a cleanup hook.
- *
- * @param input Archive bytes, path, URL, stream, or blob to open.
- * @param options Format hints, safety profile, limits, and cancellation
- * signal forwarded to bytefold.
- * @returns A live `ArchiveReader` for advanced inspection flows.
- */
-export const open = async (input: DirArchiverInput, options: OpenOptions = {}): Promise<ArchiveReader> => {
-  const runtime = await loadRuntimeBindings();
-  return runtime.openArchive(input, toArchiveOpenOptions(options));
-};
+} from './types.ts';
 
 /**
  * Detects an archive format without extracting or listing its contents.
@@ -64,17 +35,17 @@ export const open = async (input: DirArchiverInput, options: OpenOptions = {}): 
  *
  * @param input Archive bytes, path, URL, stream, or blob to inspect.
  * @param options Format hints and parse controls applied during detection.
- * @returns The resolved archive format and any bytefold detection metadata.
+ * @returns The resolved archive format and any Bytefold detection metadata.
  */
-export const detect = async (input: DirArchiverInput, options: OpenOptions = {}): Promise<DetectResult> => {
-  const reader = await open(input, options);
+export const detect = async (input: ArchiveInput, options: ReadOptions = {}): Promise<DetectResult> => {
+  const reader = await openArchive(input, toArchiveOpenOptions(options));
   try {
     return {
       format: reader.format,
       detection: reader.detection
     };
   } finally {
-    await disposeArchiveReader(reader);
+    await reader.close();
   }
 };
 
@@ -89,15 +60,15 @@ export const detect = async (input: DirArchiverInput, options: OpenOptions = {})
  * archive directory.
  * @returns Archive metadata plus the entry summaries visible to callers.
  */
-export const list = async (input: DirArchiverInput, options: OpenOptions = {}): Promise<ListResult> => {
-  const reader = await open(input, options);
+export const list = async (input: ArchiveInput, options: ReadOptions = {}): Promise<ListResult> => {
+  const reader = await openArchive(input, toArchiveOpenOptions(options));
   try {
     const entries: ListEntry[] = [];
     for await (const entry of reader.entries()) {
       entries.push({
         format: entry.format,
         name: entry.name,
-        size: entry.size.toString(),
+        sizeInBytes: entry.size.toString(),
         isDirectory: entry.isDirectory,
         isSymlink: entry.isSymlink,
         ...(typeof entry.linkName === 'string' ? { linkName: entry.linkName } : {})
@@ -109,12 +80,12 @@ export const list = async (input: DirArchiverInput, options: OpenOptions = {}): 
       entries
     };
   } finally {
-    await disposeArchiveReader(reader);
+    await reader.close();
   }
 };
 
 /**
- * Audits an archive against the selected bytefold safety profile.
+ * Audits an archive against the selected Bytefold safety profile.
  *
  * Use this before extraction when you need a report of unsafe paths, link
  * entries, or format-specific concerns without writing files to disk.
@@ -122,17 +93,17 @@ export const list = async (input: DirArchiverInput, options: OpenOptions = {}): 
  * @param input Archive bytes, path, URL, stream, or blob to audit.
  * @param options Safety profile, limits, and format hints used during the
  * audit pass.
- * @returns The bytefold audit report for the requested profile.
+ * @returns The Bytefold audit report for the requested profile.
  */
 export const audit = async (
-  input: DirArchiverInput,
-  options: OpenOptions = {}
+  input: ArchiveInput,
+  options: ReadOptions = {}
 ): Promise<ArchiveAuditReport> => {
-  const reader = await open(input, options);
+  const reader = await openArchive(input, toArchiveOpenOptions(options));
   try {
     return await reader.audit(toAuditOptions(options));
   } finally {
-    await disposeArchiveReader(reader);
+    await reader.close();
   }
 };
 
@@ -140,7 +111,7 @@ export const audit = async (
  * Rewrites an archive into its normalized deterministic representation.
  *
  * Normalization is available only when the opened archive reader exposes
- * bytefold normalization support. Unsupported formats throw
+ * Bytefold normalization support. Unsupported formats throw
  * `DIRARCHIVER_NORMALIZE_UNSUPPORTED`.
  *
  * @param input Archive bytes, path, URL, stream, or blob to normalize.
@@ -148,46 +119,56 @@ export const audit = async (
  * bytes.
  * @param options Format hints and normalization controls applied during the
  * read and write pass.
- * @returns The source format and bytefold normalization report.
+ * @returns The source format and Bytefold normalization report.
  * @throws {DirArchiverError} When the selected archive format cannot be
  * normalized by the active runtime.
  */
 export const normalize = async (
-  input: DirArchiverInput,
+  input: ArchiveInput,
   destination: string,
   options: NormalizeOptions = {}
 ): Promise<NormalizeResult> => {
-  const reader = await open(input, options);
+  const destinationPath = path.resolve(destination);
+  const inputPath = resolveLocalInputPath(input);
+  if (
+    inputPath !== undefined
+    && await pathsReferToSameFile(inputPath, destinationPath)
+  ) {
+    throw new TypeError('Normalize input and destination must be different paths.');
+  }
+
+  const reader = await openArchive(input, toArchiveOpenOptions(options));
   try {
-    if (typeof reader.normalizeToWritable !== 'function') {
+    const normalizeToWritable = reader.normalizeToWritable?.bind(reader);
+    if (normalizeToWritable === undefined) {
       throw new DirArchiverError(
         'DIRARCHIVER_NORMALIZE_UNSUPPORTED',
         `Normalize is unavailable for format "${reader.format}".`
       );
     }
 
-    const destinationPath = path.resolve(destination);
     await ensureParentDirectory(destinationPath);
-    const writable = createFileWritable(destinationPath);
-    const report = await reader.normalizeToWritable(
-      writable,
-      toNormalizeOptions(options)
+    const report = await withFileWritable(
+      destinationPath,
+      (writable) => normalizeToWritable(
+        writable,
+        toNormalizeOptions(options)
+      )
     );
     return {
       format: reader.format,
       report
     };
   } finally {
-    await disposeArchiveReader(reader);
+    await reader.close();
   }
 };
 
 /**
  * Extracts an archive into a destination directory with safety enforcement.
  *
- * `extract()` defaults to `profile: 'strict'`. Under `strict` or `agent`, the
- * archive is audited before bytes are written to disk and unsafe entries raise
- * a `DirArchiverError` instead of being silently materialized.
+ * `extract()` defaults to `safetyProfile: 'strict'`. It audits before bytes are
+ * written and rejects a report that does not satisfy the selected profile.
  *
  * @param input Archive bytes, path, URL, stream, or blob to extract.
  * @param destination Directory that will receive extracted files.
@@ -197,61 +178,45 @@ export const normalize = async (
  * exceeded, or unsupported entry types are encountered.
  */
 export const extract = async (
-  input: DirArchiverInput,
+  input: ArchiveInput,
   destination: string,
   options: ExtractOptions = {}
 ): Promise<ExtractResult> => {
-  const reader = await open(input, options);
+  validateMaterializationLimit(
+    'maxExtractedFileBytes',
+    options.maxExtractedFileBytes
+  );
+  validateMaterializationLimit(
+    'maxTotalExtractedBytes',
+    options.maxTotalExtractedBytes
+  );
+
+  const reader = await openArchive(input, toArchiveOpenOptions({
+    ...options,
+    safetyProfile: options.safetyProfile ?? 'strict'
+  }));
   try {
-    const profile = options.profile ?? 'strict';
-    const issues: ArchiveIssue[] = [];
     const destinationRoot = path.resolve(destination);
+    const auditReport = await reader.audit(toAuditOptions(options));
+    if (!auditReport.isSafe) {
+      const hasTraversalIssue = auditReport.issues.some(isTraversalIssue);
+      throw new DirArchiverError(
+        hasTraversalIssue ? 'DIRARCHIVER_PATH_TRAVERSAL' : 'DIRARCHIVER_UNSUPPORTED_ENTRY',
+        'Archive does not satisfy the selected safety profile.',
+        {
+          context: {
+            issues: auditReport.issues
+          }
+        }
+      );
+    }
 
     await fsPromises.mkdir(destinationRoot, { recursive: true });
 
-    if (profile !== 'compat') {
-      if (profile === 'agent') {
-        try {
-          await reader.assertSafe(toAuditOptions({
-            ...options,
-            profile
-          }));
-        } catch (error) {
-          throw new DirArchiverError(
-            'DIRARCHIVER_UNSUPPORTED_ENTRY',
-            'Archive assertSafe failed under agent safety profile.',
-            { cause: error }
-          );
-        }
-      }
-
-      const auditReport = await reader.audit(
-        toAuditOptions({
-          ...options,
-          profile
-        })
-      );
-      if (!auditReport.ok) {
-        const hasTraversalIssue = auditReport.issues.some((issue) =>
-          issue.code.includes('TRAVERSAL')
-          || issue.code.includes('ABSOLUTE')
-        );
-        throw new DirArchiverError(
-          hasTraversalIssue ? 'DIRARCHIVER_PATH_TRAVERSAL' : 'DIRARCHIVER_UNSUPPORTED_ENTRY',
-          'Archive audit failed under strict safety profile.',
-          {
-            context: {
-              issues: auditReport.issues
-            }
-          }
-        );
-      }
-      issues.push(...auditReport.issues);
-    }
-
-    let extractedFiles = 0;
-    let extractedDirectories = 0;
-    let skippedEntries = 0;
+    let extractedFileCount = 0;
+    let extractedDirectoryCount = 0;
+    let extractedSymlinkCount = 0;
+    let skippedEntryCount = 0;
     let totalExtractedBytes = 0;
 
     for await (const entry of reader.entries()) {
@@ -259,13 +224,13 @@ export const extract = async (
 
       if (entry.isDirectory) {
         await fsPromises.mkdir(destinationPath, { recursive: true });
-        extractedDirectories += 1;
+        extractedDirectoryCount += 1;
         continue;
       }
 
       if (entry.isSymlink) {
         if (options.allowSymlinks !== true) {
-          skippedEntries += 1;
+          skippedEntryCount += 1;
           continue;
         }
         if (typeof entry.linkName !== 'string' || entry.linkName.length === 0) {
@@ -277,149 +242,143 @@ export const extract = async (
         const symlinkTarget = normalizeSymlinkTarget(entry.linkName);
         await ensureParentDirectory(destinationPath);
         await fsPromises.symlink(symlinkTarget, destinationPath);
+        extractedSymlinkCount += 1;
         continue;
       }
 
       if (typeof entry.linkName === 'string' && entry.linkName.length > 0) {
         throw new DirArchiverError(
           'DIRARCHIVER_UNSUPPORTED_ENTRY',
-          `Hard link entry "${entry.name}" is not supported by dir-archiver v3.`
+          `Hard link entry "${entry.name}" is not supported.`
         );
       }
 
       const stream = await entry.open();
-      const bytes = await readAllBytes(stream, options.maxEntryBytes, options.maxTotalExtractedBytes, totalExtractedBytes);
+      const bytes = await readAllBytes(
+        stream,
+        options.maxExtractedFileBytes,
+        options.maxTotalExtractedBytes,
+        totalExtractedBytes
+      );
       totalExtractedBytes += bytes.length;
 
       await ensureParentDirectory(destinationPath);
       await fsPromises.writeFile(destinationPath, bytes);
-      extractedFiles += 1;
+      extractedFileCount += 1;
     }
 
     return {
       format: reader.format,
       destination: destinationRoot,
-      extractedFiles,
-      extractedDirectories,
-      skippedEntries,
-      issues
+      extractedFileCount,
+      extractedDirectoryCount,
+      extractedSymlinkCount,
+      skippedEntryCount,
+      issues: auditReport.issues
     };
   } finally {
-    await disposeArchiveReader(reader);
+    await reader.close();
   }
 };
 
 /**
  * Writes an archive from a file or directory source path.
  *
- * Directory sources are traversed deterministically. When callers request a
- * single-file compression codec such as `gz` for a directory source,
- * `dir-archiver` wraps the directory in the corresponding tar-based container
- * (`tar.gz`, `tar.zst`, and so on).
+ * Directory sources are traversed deterministically and emitted through one
+ * of Bytefold's archive writers.
  *
  * @param source File or directory path to archive.
  * @param destination Output archive path.
  * @param options Format selection, traversal rules, and exclusion controls.
  * @returns A summary of the emitted archive format and entry count.
- * @throws {DirArchiverError} When the requested output format is unsupported by
- * the active bytefold writer.
  */
 export const write = async (
   source: string,
   destination: string,
   options: WriteOptions = {}
 ): Promise<WriteResult> => {
-  const runtime = await loadRuntimeBindings();
   const sourcePath = path.resolve(source);
   const destinationPath = path.resolve(destination);
-  const requestedFormat = options.format ?? inferFormatFromDestination(destinationPath) ?? 'zip';
-  const sourceStats = await fsPromises.lstat(sourcePath);
-  const sourceIsDirectory = sourceStats.isDirectory();
-  const wrappedFormat = sourceIsDirectory
-    ? DIRECTORY_TO_SINGLE_FILE_CODEC[requestedFormat as keyof typeof DIRECTORY_TO_SINGLE_FILE_CODEC]
-    : undefined;
-  const wrappedDirectoryCodec = typeof wrappedFormat === 'string';
-  const outputFormat = wrappedFormat ?? requestedFormat;
-
-  if (writeUnsupportedFormats.has(outputFormat)) {
-    throw new DirArchiverError(
-      'DIRARCHIVER_UNSUPPORTED_ENTRY',
-      `Write format "${outputFormat}" is unsupported by bytefold writers.`
-    );
+  if (await pathsReferToSameFile(sourcePath, destinationPath)) {
+    throw new TypeError('Archive source and destination must be different paths.');
   }
-
-  await ensureParentDirectory(destinationPath);
-
-  const writer = runtime.createArchiveWriter(
-    outputFormat,
-    createFileWritable(destinationPath)
-  ) as ArchiveWriter;
-
+  const requestedFormat = options.format ?? inferFormatFromDestination(destinationPath) ?? 'zip';
+  const sourceStats = options.followSymlinks === true
+    ? await fsPromises.stat(sourcePath)
+    : await fsPromises.lstat(sourcePath);
+  if (!sourceStats.isDirectory() && !sourceStats.isFile()) {
+    throw new TypeError('Archive source must be a regular file or directory.');
+  }
+  const sourceIsDirectory = sourceStats.isDirectory();
   const entries = sourceIsDirectory
-    ? await collectDirectoryEntries(sourcePath, options)
+    ? await collectDirectoryEntries(sourcePath, destinationPath, options)
     : [{
       sourcePath,
       archivePath: path.basename(sourcePath).replace(/\\/g, '/')
     }];
 
-  for (const entry of entries) {
-    const bytes = await fsPromises.readFile(entry.sourcePath);
-    await writer.add(entry.archivePath, bytes);
-  }
-  await writer.close();
+  await ensureParentDirectory(destinationPath);
+  await withFileWritable(destinationPath, async (writable) => {
+    const writer = createArchiveWriter(requestedFormat, writable);
+    try {
+      for (const entry of entries) {
+        const bytes = await fsPromises.readFile(entry.sourcePath);
+        await writer.add(entry.archivePath, bytes);
+      }
+      await writer.close();
+    } catch (error) {
+      await writer.abort(error);
+      throw error;
+    }
+  });
 
   return {
-    format: outputFormat,
+    format: requestedFormat,
     source: sourcePath,
     destination: destinationPath,
-    entryCount: entries.length,
-    wrappedDirectoryCodec
+    entryCount: entries.length
   };
 };
 
-interface PendingEntry {
+type PendingEntry = {
   sourcePath: string;
   archivePath: string;
-}
-
-interface ExcludeMatcher {
-  isExcluded: (relativePath: string) => boolean;
-}
+};
 
 const collectDirectoryEntries = async (
   sourcePath: string,
+  destinationPath: string,
   options: WriteOptions
 ): Promise<PendingEntry[]> => {
   const includeBaseDirectory = options.includeBaseDirectory === true;
   const followSymlinks = options.followSymlinks === true;
   const sourceBaseName = path.basename(sourcePath);
-  const excludeMatcher = createExcludeMatcher(sourcePath, options.exclude ?? []);
+  const isExcluded = createExcludePredicate(options.exclude ?? []);
   const visitedDirectories = new Set<string>();
   const toVisit: string[] = [sourcePath];
   const files: PendingEntry[] = [];
 
-  while (toVisit.length > 0) {
-    const nextDirectory = toVisit.pop();
-    if (!nextDirectory) {
-      continue;
-    }
-
+  for (const nextDirectory of toVisit) {
     if (followSymlinks) {
-      const real = await fsPromises.realpath(nextDirectory).catch(() => null);
-      if (!real || visitedDirectories.has(real)) {
+      const real = await fsPromises.realpath(nextDirectory);
+      if (visitedDirectories.has(real)) {
         continue;
       }
       visitedDirectories.add(real);
     }
 
     const directoryEntries = await fsPromises.readdir(nextDirectory, { withFileTypes: true });
-    directoryEntries.sort((left, right) => left.name.localeCompare(right.name));
+    directoryEntries.sort((left, right) => compareText(left.name, right.name));
 
     for (const entry of directoryEntries) {
       const sourceEntryPath = path.join(nextDirectory, entry.name);
       const relativePath = path.relative(sourcePath, sourceEntryPath);
 
-      if (excludeMatcher.isExcluded(relativePath)) {
+      if (arePathsLexicallyEqual(sourceEntryPath, destinationPath)) {
+        continue;
+      }
+
+      if (isExcluded(relativePath)) {
         continue;
       }
 
@@ -440,10 +399,7 @@ const collectDirectoryEntries = async (
         continue;
       }
 
-      const stats = await fsPromises.stat(sourceEntryPath).catch(() => null);
-      if (!stats) {
-        continue;
-      }
+      const stats = await fsPromises.stat(sourceEntryPath);
       if (stats.isDirectory()) {
         toVisit.push(sourceEntryPath);
       } else if (stats.isFile()) {
@@ -455,90 +411,67 @@ const collectDirectoryEntries = async (
     }
   }
 
-  files.sort((left, right) => left.archivePath.localeCompare(right.archivePath));
+  files.sort((left, right) => compareText(left.archivePath, right.archivePath));
   return files;
 };
 
-const toArchiveOpenOptions = (options: OpenOptions): ArchiveOpenOptions => {
-  const archiveOptions: ArchiveOpenOptions = {};
-  if (options.format !== undefined) {
-    archiveOptions.format = options.format;
-  }
-  if (options.profile !== undefined) {
-    archiveOptions.profile = options.profile;
-  }
-  if (options.isStrict !== undefined) {
-    archiveOptions.isStrict = options.isStrict;
-  }
-  if (options.limits !== undefined) {
-    archiveOptions.limits = options.limits;
-  }
-  if (options.signal !== undefined) {
-    archiveOptions.signal = options.signal;
-  }
-  if (options.password !== undefined) {
-    archiveOptions.password = options.password;
-  }
-  if (options.filename !== undefined) {
-    archiveOptions.filename = options.filename;
-  }
-  return archiveOptions;
-};
-
 const toAuditOptions = (
-  options: OpenOptions
+  options: ReadOptions
 ): Parameters<ArchiveReader['audit']>[0] => {
-  const auditOptions: {
-    profile?: OpenOptions['profile'];
-    isStrict?: OpenOptions['isStrict'];
-    limits?: OpenOptions['limits'];
-    signal?: OpenOptions['signal'];
-  } = {};
-  if (options.profile !== undefined) {
-    auditOptions.profile = options.profile;
-  }
-  if (options.isStrict !== undefined) {
-    auditOptions.isStrict = options.isStrict;
-  }
-  if (options.limits !== undefined) {
-    auditOptions.limits = options.limits;
-  }
-  if (options.signal !== undefined) {
-    auditOptions.signal = options.signal;
-  }
-  return auditOptions as Parameters<ArchiveReader['audit']>[0];
+  return {
+    ...(options.limits === undefined ? {} : { limits: options.limits }),
+    ...(options.signal === undefined ? {} : { signal: options.signal })
+  };
 };
 
 const toNormalizeOptions = (
   options: NormalizeOptions
 ): Parameters<NonNullable<ArchiveReader['normalizeToWritable']>>[1] => {
-  const normalizeOptions: {
-    isDeterministic: boolean;
-    limits?: NormalizeOptions['limits'];
-    signal?: NormalizeOptions['signal'];
-  } = {
-    isDeterministic: options.deterministic ?? true
+  return {
+    isDeterministic: options.isDeterministic ?? true,
+    ...(options.limits === undefined ? {} : { limits: options.limits }),
+    ...(options.signal === undefined ? {} : { signal: options.signal })
   };
-  if (options.limits !== undefined) {
-    normalizeOptions.limits = options.limits;
-  }
-  if (options.signal !== undefined) {
-    normalizeOptions.signal = options.signal;
-  }
-  return normalizeOptions as Parameters<NonNullable<ArchiveReader['normalizeToWritable']>>[1];
 };
 
-const createExcludeMatcher = (sourcePath: string, excludes: string[]): ExcludeMatcher => {
+const toArchiveOpenOptions = (
+  options: ReadOptions
+): ArchiveOpenOptions => ({
+  ...(options.format === undefined ? {} : { format: options.format }),
+  ...(options.safetyProfile === undefined
+    ? {}
+    : { safetyProfile: options.safetyProfile }),
+  ...(options.limits === undefined ? {} : { limits: options.limits }),
+  ...(options.signal === undefined ? {} : { signal: options.signal }),
+  ...(options.password === undefined ? {} : { password: options.password }),
+  ...(options.filename === undefined ? {} : { filename: options.filename })
+});
+
+const createExcludePredicate = (
+  excludes: readonly string[]
+): ((relativePath: string) => boolean) => {
   const excludedPaths = new Set<string>();
   const excludedNames = new Set<string>();
   const caseInsensitive = process.platform === 'win32';
 
   for (const rawExclude of excludes) {
-    const normalizedExclude = normalizeExcludeInput(rawExclude, sourcePath);
-    if (!normalizedExclude) {
-      continue;
+    const isWindowsAbsolutePath = /^[a-zA-Z]:[\\/]/u.test(rawExclude);
+    const normalizedExclude = path.normalize(
+      rawExclude.replace(/\\/g, path.sep)
+    );
+    if (
+      rawExclude.length === 0
+      || normalizedExclude === '.'
+      || normalizedExclude === '..'
+      || normalizedExclude.startsWith(`..${path.sep}`)
+      || isWindowsAbsolutePath
+      || path.isAbsolute(normalizedExclude)
+    ) {
+      throw new TypeError(
+        'Each exclusion must be a non-empty source-relative basename or path.'
+      );
     }
-    const hasSeparator = normalizedExclude.includes('/') || normalizedExclude.includes('\\') || normalizedExclude.includes(path.sep);
+    const hasSeparator = normalizedExclude.includes(path.sep);
     const normalizedValue = normalizeCase(normalizedExclude, caseInsensitive);
     excludedPaths.add(normalizedValue);
     if (!hasSeparator) {
@@ -546,64 +479,67 @@ const createExcludeMatcher = (sourcePath: string, excludes: string[]): ExcludeMa
     }
   }
 
-  return {
-    isExcluded(relativePath: string): boolean {
-      const normalizedRelativePath = normalizeCase(path.normalize(relativePath), caseInsensitive);
-      if (excludedPaths.has(normalizedRelativePath)) {
-        return true;
-      }
-      const baseName = normalizeCase(path.basename(normalizedRelativePath), caseInsensitive);
-      return excludedNames.has(baseName);
+  return (relativePath: string): boolean => {
+    const normalizedRelativePath = normalizeCase(
+      path.normalize(relativePath),
+      caseInsensitive
+    );
+    if (excludedPaths.has(normalizedRelativePath)) {
+      return true;
     }
+    const baseName = normalizeCase(
+      path.basename(normalizedRelativePath),
+      caseInsensitive
+    );
+    return excludedNames.has(baseName);
   };
-};
-
-const normalizeExcludeInput = (excludeRaw: string, sourcePath: string): string | undefined => {
-  if (typeof excludeRaw !== 'string') {
-    return undefined;
-  }
-  const trimmed = excludeRaw.trim();
-  if (trimmed.length === 0) {
-    return undefined;
-  }
-
-  let normalized = path.normalize(trimmed.replace(/\\/g, path.sep));
-  if (normalized === '.' || normalized === path.sep) {
-    return undefined;
-  }
-
-  if (path.isAbsolute(normalized)) {
-    const relativeCandidate = path.relative(sourcePath, normalized);
-    const isInsideSource = relativeCandidate.length > 0
-      && !relativeCandidate.startsWith('..')
-      && !path.isAbsolute(relativeCandidate);
-    if (isInsideSource) {
-      normalized = path.normalize(relativeCandidate);
-    }
-  }
-
-  normalized = trimTrailingPathSeparators(normalized);
-  if (normalized.length === 0 || normalized === '.') {
-    return undefined;
-  }
-  return normalized;
 };
 
 const normalizeCase = (value: string, caseInsensitive: boolean): string => {
   return caseInsensitive ? value.toLowerCase() : value;
 };
 
-const trimTrailingPathSeparators = (value: string): string => {
-  let end = value.length;
-  while (end > 0) {
-    const code = value.charCodeAt(end - 1);
-    if (code === 47 || code === 92) {
-      end -= 1;
-      continue;
-    }
-    break;
+const compareText = (left: string, right: string): number => {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+};
+
+const isTraversalIssue = (issue: ArchiveIssue): boolean => {
+  switch (issue.code) {
+    case 'ARCHIVE_PATH_TRAVERSAL':
+    case 'TAR_PATH_TRAVERSAL':
+    case 'ZIP_PATH_TRAVERSAL':
+      return true;
+    default:
+      return false;
   }
-  return value.slice(0, end);
+};
+
+const arePathsLexicallyEqual = (left: string, right: string): boolean =>
+  normalizeCase(path.resolve(left), process.platform === 'win32')
+  === normalizeCase(path.resolve(right), process.platform === 'win32');
+
+const pathsReferToSameFile = async (
+  left: string,
+  right: string
+): Promise<boolean> => {
+  if (arePathsLexicallyEqual(left, right)) {
+    return true;
+  }
+
+  try {
+    const [leftStats, rightStats] = await Promise.all([
+      fsPromises.stat(left),
+      fsPromises.stat(right)
+    ]);
+    return leftStats.dev === rightStats.dev && leftStats.ino === rightStats.ino;
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return false;
+    }
+    throw error;
+  }
 };
 
 const toArchivePath = (relativePath: string, baseDirectory?: string): string => {
@@ -667,9 +603,9 @@ const normalizeSymlinkTarget = (linkName: string): string => {
 
 const readAllBytes = async (
   stream: ReadableStream<Uint8Array>,
-  maxEntryBytes?: number,
-  maxTotalBytes?: number,
-  currentTotalBytes = 0
+  maxExtractedFileBytes: number | undefined,
+  maxTotalExtractedBytes: number | undefined,
+  previouslyExtractedBytes: number
 ): Promise<Uint8Array> => {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -681,30 +617,33 @@ const readAllBytes = async (
       if (chunk.done) {
         break;
       }
-      if (!(chunk.value instanceof Uint8Array)) {
-        continue;
-      }
       entryTotal += chunk.value.length;
-      if (typeof maxEntryBytes === 'number' && entryTotal > maxEntryBytes) {
+      if (
+        typeof maxExtractedFileBytes === 'number'
+        && entryTotal > maxExtractedFileBytes
+      ) {
         throw new DirArchiverError(
           'DIRARCHIVER_RESOURCE_LIMIT',
-          `Entry exceeds maxEntryBytes (${maxEntryBytes}).`,
+          `File exceeds maxExtractedFileBytes (${maxExtractedFileBytes}).`,
           {
             context: {
-              maxEntryBytes,
-              actualEntryBytes: entryTotal
+              maxExtractedFileBytes,
+              actualExtractedFileBytes: entryTotal
             }
           }
         );
       }
-      const projectedTotal = currentTotalBytes + entryTotal;
-      if (typeof maxTotalBytes === 'number' && projectedTotal > maxTotalBytes) {
+      const projectedTotal = previouslyExtractedBytes + entryTotal;
+      if (
+        typeof maxTotalExtractedBytes === 'number'
+        && projectedTotal > maxTotalExtractedBytes
+      ) {
         throw new DirArchiverError(
           'DIRARCHIVER_RESOURCE_LIMIT',
-          `Extraction exceeds maxTotalExtractedBytes (${maxTotalBytes}).`,
+          `Extraction exceeds maxTotalExtractedBytes (${maxTotalExtractedBytes}).`,
           {
             context: {
-              maxTotalExtractedBytes: maxTotalBytes,
+              maxTotalExtractedBytes,
               projectedTotalBytes: projectedTotal
             }
           }
@@ -712,6 +651,9 @@ const readAllBytes = async (
       }
       chunks.push(chunk.value);
     }
+  } catch (error) {
+    await reader.cancel(error);
+    throw error;
   } finally {
     reader.releaseLock();
   }
@@ -725,48 +667,79 @@ const readAllBytes = async (
   return output;
 };
 
+const validateMaterializationLimit = (
+  name: 'maxExtractedFileBytes' | 'maxTotalExtractedBytes',
+  value: number | undefined
+): void => {
+  if (value === undefined) return;
+  if (Number.isSafeInteger(value) && value >= 0) return;
+  throw new TypeError(`${name} must be a non-negative safe integer.`);
+};
+
+const resolveLocalInputPath = (input: ArchiveInput): string | undefined => {
+  if (input instanceof URL) {
+    return input.protocol === 'file:' ? fileURLToPath(input) : undefined;
+  }
+  if (typeof input !== 'string') return undefined;
+  if (/^https?:\/\//iu.test(input)) return undefined;
+  return path.resolve(input);
+};
+
 const ensureParentDirectory = async (targetPath: string): Promise<void> => {
   await fsPromises.mkdir(path.dirname(targetPath), { recursive: true });
 };
 
-const createFileWritable = (targetPath: string): WritableStream<Uint8Array> => {
-  const writable = createWriteStream(targetPath);
-  return Writable.toWeb(writable) as WritableStream<Uint8Array>;
+type FileWritable = {
+  writable: WritableStream<Uint8Array>;
+  close: () => Promise<void>;
 };
 
-const inferFormatFromDestination = (destinationPath: string): ArchiveFormat | undefined => {
+const openFileWritable = async (targetPath: string): Promise<FileWritable> => {
+  const file = await fsPromises.open(targetPath, 'w');
+  let isClosed = false;
+
+  const closeFile = async (): Promise<void> => {
+    if (isClosed) return;
+    isClosed = true;
+    await file.close();
+  };
+
+  return {
+    writable: new WritableStream<Uint8Array>({
+      write: (chunk) => file.writeFile(chunk),
+      close: closeFile,
+      abort: closeFile
+    }),
+    close: closeFile
+  };
+};
+
+const withFileWritable = async <Result>(
+  targetPath: string,
+  useWritable: (
+    writable: WritableStream<Uint8Array>
+  ) => Promise<Result>
+): Promise<Result> => {
+  const fileWritable = await openFileWritable(targetPath);
+  try {
+    return await useWritable(fileWritable.writable);
+  } finally {
+    await fileWritable.close();
+  }
+};
+
+const inferFormatFromDestination = (destinationPath: string): ArchiveWriterFormat | undefined => {
   const lower = destinationPath.toLowerCase();
   if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) return 'tar.gz';
-  if (lower.endsWith('.tar.bz2')) return 'tar.bz2';
-  if (lower.endsWith('.tar.xz')) return 'tar.xz';
   if (lower.endsWith('.tar.zst')) return 'tar.zst';
   if (lower.endsWith('.tar.br')) return 'tar.br';
   if (lower.endsWith('.tar')) return 'tar';
   if (lower.endsWith('.zip')) return 'zip';
-  if (lower.endsWith('.gz')) return 'gz';
-  if (lower.endsWith('.bz2')) return 'bz2';
-  if (lower.endsWith('.xz')) return 'xz';
-  if (lower.endsWith('.zst')) return 'zst';
-  if (lower.endsWith('.br')) return 'br';
   return undefined;
 };
 
-const disposeArchiveReader = async (reader: ArchiveReader): Promise<void> => {
-  const withAsyncDispose = reader as {
-    [Symbol.asyncDispose]?: () => Promise<void>;
-    dispose?: () => Promise<void>;
-    close?: () => Promise<void>;
-  };
-  const asyncDispose = withAsyncDispose[Symbol.asyncDispose];
-  if (typeof asyncDispose === 'function') {
-    await asyncDispose.call(withAsyncDispose);
-    return;
-  }
-  if (typeof withAsyncDispose.dispose === 'function') {
-    await withAsyncDispose.dispose();
-    return;
-  }
-  if (typeof withAsyncDispose.close === 'function') {
-    await withAsyncDispose.close();
-  }
-};
+const isMissingPathError = (error: unknown): boolean =>
+  typeof error === 'object'
+  && error !== null
+  && 'code' in error
+  && error.code === 'ENOENT';

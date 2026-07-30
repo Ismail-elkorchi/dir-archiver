@@ -38,9 +38,9 @@ body:
   - type: input
     id: runtime
     attributes:
-      label: Runtime
-      description: Node, Deno, Bun, browser, or other relevant runtime and version
-      placeholder: Node 24.13.1
+      label: Runtime and operating system
+      description: Node.js, Deno, or Bun version and operating system
+      placeholder: Node.js 24.14.0 on Windows 11
     validations:
       required: true
   - type: textarea

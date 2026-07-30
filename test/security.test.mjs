@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Writable } from 'node:stream';
 import test from 'node:test';
-import { createArchiveWriter } from '@ismail-elkorchi/bytefold/node';
+import { createArchiveWriter } from '@ismail-elkorchi/bytefold';
 import { extract } from '../dist/index.js';
 import { DirArchiverError } from '../dist/errors.js';
 
@@ -33,7 +33,7 @@ test('extract rejects traversal and absolute entry paths', async () => {
     ]);
 
     await assert.rejects(
-      async () => extract(archive, path.join(tmpRoot, 'out'), { profile: 'strict' }),
+      async () => extract(archive, path.join(tmpRoot, 'out'), { safetyProfile: 'strict' }),
       (error) => error instanceof DirArchiverError && error.code === 'DIRARCHIVER_PATH_TRAVERSAL'
     );
 
@@ -43,7 +43,7 @@ test('extract rejects traversal and absolute entry paths', async () => {
     ]);
 
     await assert.rejects(
-      async () => extract(absoluteArchive, path.join(tmpRoot, 'out-abs'), { profile: 'strict' }),
+      async () => extract(absoluteArchive, path.join(tmpRoot, 'out-abs'), { safetyProfile: 'strict' }),
       (error) => error instanceof DirArchiverError && error.code === 'DIRARCHIVER_PATH_TRAVERSAL'
     );
   } finally {
@@ -61,14 +61,23 @@ test('extract enforces decompression byte budgets', async () => {
 
     await assert.rejects(
       async () => extract(archive, path.join(tmpRoot, 'budget-out'), {
-        profile: 'strict',
-        maxEntryBytes: 8
+        safetyProfile: 'strict',
+        maxExtractedFileBytes: 8
       }),
       (error) => error instanceof DirArchiverError && error.code === 'DIRARCHIVER_RESOURCE_LIMIT'
     );
   } finally {
     cleanup(tmpRoot);
   }
+});
+
+test('extract rejects invalid materialization limits before opening the input', async () => {
+  await assert.rejects(
+    extract('missing.zip', 'out', { maxExtractedFileBytes: -1 }),
+    (error) =>
+      error instanceof TypeError
+      && error.message === 'maxExtractedFileBytes must be a non-negative safe integer.'
+  );
 });
 
 test('extract rejects duplicate/conflicting names under strict profile', async () => {
@@ -81,7 +90,7 @@ test('extract rejects duplicate/conflicting names under strict profile', async (
     ]);
 
     await assert.rejects(
-      async () => extract(archive, path.join(tmpRoot, 'dup-out'), { profile: 'agent' }),
+      async () => extract(archive, path.join(tmpRoot, 'dup-out'), { safetyProfile: 'untrusted' }),
       (error) => error instanceof DirArchiverError && error.code === 'DIRARCHIVER_UNSUPPORTED_ENTRY'
     );
   } finally {

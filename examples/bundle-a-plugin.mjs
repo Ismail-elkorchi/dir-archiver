@@ -1,17 +1,7 @@
-/**
- * Goal: Bundle a plugin directory into a ZIP while excluding development artifacts.
- * Prereqs:
- * - Run from repo root after `npm run build`.
- * Run:
- * - `node examples/bundle-a-plugin.mjs`
- * Expected output:
- * - JSON object with `{ ok: true, format: "zip", entryCount, wrappedDirectoryCodec }`.
- * Safety notes:
- * - Uses a temporary directory and deletes it before exit.
- */
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { detect, write } from "../dist/index.js";
 
 function makeFixture(root) {
@@ -32,19 +22,16 @@ export async function run() {
   const root = mkdtempSync(path.join(tmpdir(), "dir-archiver-bundle-"));
   try {
     const pluginDir = makeFixture(root);
-    const output = path.join(root, "bundle.zip");
-    const result = await write(pluginDir, output, {
+    const archivePath = path.join(root, "bundle.zip");
+    const result = await write(pluginDir, archivePath, {
       includeBaseDirectory: true,
       exclude: [".git", "node_modules", "package-lock.json", "package.json"],
     });
-    const detected = await detect(output);
+    const detected = await detect(archivePath);
     const payload = {
-      ok: true,
-      output,
-      outputExists: existsSync(output),
+      archivePath,
       format: detected.format,
       entryCount: result.entryCount,
-      wrappedDirectoryCodec: result.wrappedDirectoryCodec,
     };
     console.log(JSON.stringify(payload, null, 2));
     return payload;
@@ -53,6 +40,9 @@ export async function run() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] !== undefined
+  && import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await run();
 }

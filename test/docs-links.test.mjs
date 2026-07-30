@@ -5,15 +5,6 @@ import test from 'node:test';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 
-const rootMarkdownFiles = [
-  'README.md',
-  'CHANGELOG.md',
-  'CONTRACT.md',
-  'CONTRIBUTING.md',
-  'SECURITY.md',
-  'SUPPORT.md'
-];
-
 const markdownDirectories = [
   'docs',
   '.github'
@@ -45,7 +36,11 @@ const walk = (directory) => {
 };
 
 const collectMarkdownFiles = () => {
-  const files = rootMarkdownFiles.map((relativePath) => path.join(repoRoot, relativePath));
+  const files = fs.readdirSync(repoRoot, { withFileTypes: true })
+    .filter((entry) =>
+      entry.isFile()
+      && path.extname(entry.name).toLowerCase() === '.md')
+    .map((entry) => path.join(repoRoot, entry.name));
 
   for (const relativeDirectory of markdownDirectories) {
     const directory = path.join(repoRoot, relativeDirectory);

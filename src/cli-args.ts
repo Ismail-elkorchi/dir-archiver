@@ -1,46 +1,31 @@
-import type { Schema } from 'argv-flags';
-import type { ArchiveFormat, ArchiveProfile } from './types.js';
+import { createParser } from 'argv-flags';
+import type { OptionDefinitions, ParseIssue } from 'argv-flags';
+import type {
+  ArchiveFormat,
+  ArchiveWriterFormat,
+  SafetyProfile
+} from './types.ts';
 
-const SUPPORTED_COMMANDS = new Set(['open', 'detect', 'list', 'audit', 'extract', 'normalize', 'write']);
-
-const SUPPORTED_FORMATS = new Set<ArchiveFormat>([
-  'zip',
-  'tar',
-  'tgz',
-  'tar.gz',
-  'gz',
-  'bz2',
-  'tar.bz2',
-  'zst',
-  'tar.zst',
-  'br',
-  'tar.br',
-  'xz',
-  'tar.xz'
-]);
-
-const SUPPORTED_PROFILES = new Set<ArchiveProfile>(['compat', 'strict', 'agent']);
-
-const CLI_SCHEMA = {
+const CLI_DEFINITIONS = {
   source: {
     type: 'string',
-    flags: ['--source', '--src']
+    flags: ['--source']
   },
   input: {
     type: 'string',
-    flags: ['--input', '-i']
+    flags: ['--input']
   },
   output: {
     type: 'string',
-    flags: ['--output', '--dest', '-o']
+    flags: ['--output']
   },
   format: {
     type: 'string',
     flags: ['--format']
   },
-  profile: {
+  safetyProfile: {
     type: 'string',
-    flags: ['--profile'],
+    flags: ['--safety-profile'],
     default: 'strict'
   },
   json: {
@@ -50,238 +35,406 @@ const CLI_SCHEMA = {
   },
   includeBaseDirectory: {
     type: 'boolean',
-    flags: ['--include-base-directory', '--includebasedir'],
+    flags: ['--include-base-directory'],
     default: false
   },
   followSymlinks: {
     type: 'boolean',
-    flags: ['--follow-symlinks', '--followsymlinks'],
+    flags: ['--follow-symlinks'],
     default: false
   },
   exclude: {
-    type: 'array',
+    type: 'string',
     flags: ['--exclude'],
-    default: [] as string[]
+    multiple: true
   },
   allowSymlinks: {
     type: 'boolean',
     flags: ['--allow-symlinks'],
     default: false
   },
-  allowHardlinks: {
-    type: 'boolean',
-    flags: ['--allow-hardlinks'],
-    default: false
-  },
-  maxEntryBytes: {
+  maxExtractedFileBytes: {
     type: 'number',
-    flags: ['--max-entry-bytes']
+    flags: ['--max-extracted-file-bytes']
   },
   maxTotalExtractedBytes: {
     type: 'number',
     flags: ['--max-total-extracted-bytes']
   }
-} as const satisfies Schema;
+} as const satisfies OptionDefinitions;
 
-export type CliCommand = 'open' | 'detect' | 'list' | 'audit' | 'extract' | 'normalize' | 'write';
+const CLI_PARSER = createParser(CLI_DEFINITIONS);
 
-export interface ParsedCliArgs {
-  ok: boolean;
-  issues: { code: string; message: string }[];
-  command: CliCommand | undefined;
-  input: string | undefined;
-  source: string | undefined;
-  output: string | undefined;
+const SUPPORTED_COMMANDS = [
+  'detect',
+  'list',
+  'audit',
+  'extract',
+  'normalize',
+  'write'
+] as const;
+
+type CliCommand = typeof SUPPORTED_COMMANDS[number];
+
+type CliOptionName = keyof typeof CLI_DEFINITIONS;
+
+type CliSemanticIssue = {
+  code:
+    | 'MISSING_COMMAND'
+    | 'UNKNOWN_COMMAND'
+    | 'UNEXPECTED_POSITIONAL'
+    | 'UNEXPECTED_ARGUMENT_AFTER_DOUBLE_DASH'
+    | 'MISSING_OPTION'
+    | 'INVALID_OPTION_VALUE'
+    | 'OPTION_NOT_ALLOWED';
+  message: string;
+};
+
+type CliIssue = ParseIssue | CliSemanticIssue;
+
+type ParsedReadOptions = {
+  input: string;
   format: ArchiveFormat | undefined;
-  profile: ArchiveProfile;
-  json: boolean;
-  includeBaseDirectory: boolean;
-  followSymlinks: boolean;
-  exclude: string[];
-  allowSymlinks: boolean;
-  allowHardlinks: boolean;
-  maxEntryBytes: number | undefined;
-  maxTotalExtractedBytes: number | undefined;
-}
+  safetyProfile: SafetyProfile;
+  useJsonOutput: boolean;
+};
 
-type ParseArgsFn = (
-  schema: Schema,
-  options?: {
-    argv?: readonly string[];
-    allowUnknown?: boolean;
-    stopAtDoubleDash?: boolean;
+type ParsedCliArgs =
+  | {
+    success: false;
+    useJsonOutput: boolean;
+    issues: CliIssue[];
   }
-) => {
-  values: Record<string, unknown>;
-  rest: string[];
-  issues: {
-    code: string;
-    message: string;
-  }[];
-  ok: boolean;
-};
+  | ({
+    success: true;
+    command: 'detect' | 'list' | 'audit';
+  } & ParsedReadOptions)
+  | ({
+    success: true;
+    command: 'extract';
+    destination: string;
+    allowSymlinks: boolean;
+    maxExtractedFileBytes: number | undefined;
+    maxTotalExtractedBytes: number | undefined;
+  } & ParsedReadOptions)
+  | ({
+    success: true;
+    command: 'normalize';
+    destination: string;
+  } & ParsedReadOptions)
+  | {
+    success: true;
+    command: 'write';
+    source: string;
+    destination: string;
+    format: ArchiveWriterFormat | undefined;
+    useJsonOutput: boolean;
+    includeBaseDirectory: boolean;
+    followSymlinks: boolean;
+    exclude: string[];
+  };
 
-let parseArgsPromise: Promise<ParseArgsFn> | undefined;
+const ALLOWED_OPTIONS = {
+  detect: ['input', 'format', 'safetyProfile', 'json'],
+  list: ['input', 'format', 'safetyProfile', 'json'],
+  audit: ['input', 'format', 'safetyProfile', 'json'],
+  extract: [
+    'input',
+    'output',
+    'format',
+    'safetyProfile',
+    'json',
+    'allowSymlinks',
+    'maxExtractedFileBytes',
+    'maxTotalExtractedBytes'
+  ],
+  normalize: ['input', 'output', 'format', 'safetyProfile', 'json'],
+  write: [
+    'source',
+    'output',
+    'format',
+    'json',
+    'includeBaseDirectory',
+    'followSymlinks',
+    'exclude'
+  ]
+} as const satisfies Record<CliCommand, readonly CliOptionName[]>;
 
-const loadParseArgs = (): Promise<ParseArgsFn> => {
-  parseArgsPromise ??= import('argv-flags').then((moduleExports) => moduleExports.default as ParseArgsFn);
-  return parseArgsPromise;
-};
+export const parseCliArgs = (args: readonly string[]): ParsedCliArgs => {
+  const parsed = CLI_PARSER.parse({ args });
+  if (!parsed.success) {
+    return {
+      success: false,
+      useJsonOutput: parsed.specified.json,
+      issues: parsed.issues
+    };
+  }
 
-export const parseCliArgs = async (argv: readonly string[]): Promise<ParsedCliArgs> => {
-  const parseArgs = await loadParseArgs();
-  const parsed = parseArgs(CLI_SCHEMA, {
-    argv: [...argv]
-  });
+  const { values } = parsed;
+  const issues: CliIssue[] = [];
+  const command = resolveCommand(parsed.positionals, issues);
 
-  const issues = parsed.issues.map((issue) => ({
-    code: issue.code,
-    message: issue.message
-  }));
+  if (parsed.argumentsAfterDoubleDash.length > 0) {
+    issues.push({
+      code: 'UNEXPECTED_ARGUMENT_AFTER_DOUBLE_DASH',
+      message: 'Arguments after "--" are not accepted.'
+    });
+  }
 
-  const values = parsed.values;
-  const commandToken = parsed.rest[0];
-  const command = resolveCommand(commandToken, values, issues);
-  const profile = resolveProfile(values['profile'], issues);
-  const format = resolveFormat(values['format'], issues);
+  if (command === undefined) {
+    return failure(values.json, issues);
+  }
 
-  const source = toOptionalString(values['source']);
-  const input = toOptionalString(values['input']);
-  const output = toOptionalString(values['output']);
+  validateSpecifiedOptions(command, parsed.specified, issues);
 
-  validateCommandRequirements(command, { source, input, output }, issues);
+  if (command === 'write') {
+    const format = resolveWriteFormat(values.format, issues);
+    if (values.source === undefined) {
+      issues.push({ code: 'MISSING_OPTION', message: 'write requires --source.' });
+    }
+    if (values.output === undefined) {
+      issues.push({ code: 'MISSING_OPTION', message: 'write requires --output.' });
+    }
+    if (issues.length > 0 || values.source === undefined || values.output === undefined) {
+      return failure(values.json, issues);
+    }
+    return {
+      success: true,
+      command,
+      source: values.source,
+      destination: values.output,
+      format,
+      useJsonOutput: values.json,
+      includeBaseDirectory: values.includeBaseDirectory,
+      followSymlinks: values.followSymlinks,
+      exclude: values.exclude
+    };
+  }
+
+  const format = resolveReadFormat(values.format, issues);
+  const safetyProfile = resolveSafetyProfile(values.safetyProfile, issues);
+  if (values.input === undefined) {
+    issues.push({ code: 'MISSING_OPTION', message: `${command} requires --input.` });
+  }
+
+  if (command === 'extract' || command === 'normalize') {
+    if (values.output === undefined) {
+      issues.push({ code: 'MISSING_OPTION', message: `${command} requires --output.` });
+    }
+  }
+
+  if (command === 'extract') {
+    validateByteLimit(
+      '--max-extracted-file-bytes',
+      values.maxExtractedFileBytes,
+      issues
+    );
+    validateByteLimit(
+      '--max-total-extracted-bytes',
+      values.maxTotalExtractedBytes,
+      issues
+    );
+  }
+
+  if (
+    issues.length > 0
+    || values.input === undefined
+    || safetyProfile === undefined
+  ) {
+    return failure(values.json, issues);
+  }
+
+  if (command === 'extract') {
+    if (values.output === undefined) return failure(values.json, issues);
+    return {
+      success: true,
+      command,
+      input: values.input,
+      destination: values.output,
+      format,
+      safetyProfile,
+      useJsonOutput: values.json,
+      allowSymlinks: values.allowSymlinks,
+      maxExtractedFileBytes: values.maxExtractedFileBytes,
+      maxTotalExtractedBytes: values.maxTotalExtractedBytes
+    };
+  }
+
+  if (command === 'normalize') {
+    if (values.output === undefined) return failure(values.json, issues);
+    return {
+      success: true,
+      command,
+      input: values.input,
+      destination: values.output,
+      format,
+      safetyProfile,
+      useJsonOutput: values.json
+    };
+  }
 
   return {
-    ok: issues.length === 0,
-    issues,
+    success: true,
     command,
-    source,
-    input,
-    output,
+    input: values.input,
     format,
-    profile,
-    json: values['json'] === true,
-    includeBaseDirectory: values['includeBaseDirectory'] === true,
-    followSymlinks: values['followSymlinks'] === true,
-    exclude: toStringArray(values['exclude']),
-    allowSymlinks: values['allowSymlinks'] === true,
-    allowHardlinks: values['allowHardlinks'] === true,
-    maxEntryBytes: toOptionalNumber(values['maxEntryBytes']),
-    maxTotalExtractedBytes: toOptionalNumber(values['maxTotalExtractedBytes'])
+    safetyProfile,
+    useJsonOutput: values.json
   };
 };
 
 const resolveCommand = (
-  commandToken: string | undefined,
-  values: Record<string, unknown>,
-  issues: { code: string; message: string }[]
+  positionals: readonly string[],
+  issues: CliIssue[]
 ): CliCommand | undefined => {
-  if (typeof commandToken === 'string' && SUPPORTED_COMMANDS.has(commandToken)) {
-    return commandToken as CliCommand;
+  const command = positionals[0];
+  if (command === undefined) {
+    issues.push({ code: 'MISSING_COMMAND', message: 'Missing command.' });
+    return undefined;
   }
-
-  if (typeof commandToken === 'string' && commandToken.length > 0) {
+  if (!isCliCommand(command)) {
     issues.push({
-      code: 'USAGE',
-      message: `Unknown command "${commandToken}".`
+      code: 'UNKNOWN_COMMAND',
+      message: `Unknown command "${command}".`
     });
     return undefined;
   }
-
-  const hasSource = typeof values['source'] === 'string';
-  const hasOutput = typeof values['output'] === 'string';
-  if (hasSource && hasOutput) {
-    return 'write';
+  if (positionals.length > 1) {
+    issues.push({
+      code: 'UNEXPECTED_POSITIONAL',
+      message: `Unexpected positional arguments: ${positionals.slice(1).join(', ')}.`
+    });
   }
+  return command;
+};
 
+const validateSpecifiedOptions = (
+  command: CliCommand,
+  specified: Readonly<Record<string, boolean>>,
+  issues: CliIssue[]
+): void => {
+  const allowed = ALLOWED_OPTIONS[command];
+  for (const [optionName, definition] of Object.entries(CLI_DEFINITIONS)) {
+    if (
+      !specified[optionName]
+      || allowed.some((allowedName) => allowedName === optionName)
+    ) {
+      continue;
+    }
+    const flag = definition.flags[0];
+    issues.push({
+      code: 'OPTION_NOT_ALLOWED',
+      message: `${flag} is not accepted by ${command}.`
+    });
+  }
+};
+
+const resolveReadFormat = (
+  value: string | undefined,
+  issues: CliIssue[]
+): ArchiveFormat | undefined => {
+  if (value === undefined) return undefined;
+  if (isArchiveFormat(value)) return value;
   issues.push({
-    code: 'USAGE',
-    message: 'Missing command.'
+    code: 'INVALID_OPTION_VALUE',
+    message: `Unsupported archive format "${value}".`
   });
   return undefined;
 };
 
-const resolveProfile = (
-  value: unknown,
-  issues: { code: string; message: string }[]
-): ArchiveProfile => {
-  const normalized = typeof value === 'string' ? value : 'strict';
-  if (!SUPPORTED_PROFILES.has(normalized as ArchiveProfile)) {
-    issues.push({
-      code: 'INVALID_VALUE',
-      message: `Unsupported profile "${String(value)}".`
-    });
-    return 'strict';
-  }
-  return normalized as ArchiveProfile;
+const resolveWriteFormat = (
+  value: string | undefined,
+  issues: CliIssue[]
+): ArchiveWriterFormat | undefined => {
+  if (value === undefined) return undefined;
+  if (isArchiveWriterFormat(value)) return value;
+  issues.push({
+    code: 'INVALID_OPTION_VALUE',
+    message: `Unsupported write format "${value}".`
+  });
+  return undefined;
 };
 
-const resolveFormat = (
-  value: unknown,
-  issues: { code: string; message: string }[]
-): ArchiveFormat | undefined => {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  if (!SUPPORTED_FORMATS.has(value as ArchiveFormat)) {
-    issues.push({
-      code: 'INVALID_VALUE',
-      message: `Unsupported format "${value}".`
-    });
-    return undefined;
-  }
-  return value as ArchiveFormat;
+const resolveSafetyProfile = (
+  value: string,
+  issues: CliIssue[]
+): SafetyProfile | undefined => {
+  if (isSafetyProfile(value)) return value;
+  issues.push({
+    code: 'INVALID_OPTION_VALUE',
+    message: `Unsupported safety profile "${value}".`
+  });
+  return undefined;
 };
 
-const validateCommandRequirements = (
-  command: CliCommand | undefined,
-  values: {
-    source: string | undefined;
-    input: string | undefined;
-    output: string | undefined;
-  },
-  issues: { code: string; message: string }[]
+const validateByteLimit = (
+  flag: string,
+  value: number | undefined,
+  issues: CliIssue[]
 ): void => {
-  if (!command) {
-    return;
-  }
+  if (value === undefined || (Number.isSafeInteger(value) && value >= 0)) return;
+  issues.push({
+    code: 'INVALID_OPTION_VALUE',
+    message: `${flag} must be a non-negative safe integer.`
+  });
+};
 
-  if (command === 'write') {
-    if (!values.source) {
-      issues.push({ code: 'REQUIRED', message: 'write requires --source/--src.' });
-    }
-    if (!values.output) {
-      issues.push({ code: 'REQUIRED', message: 'write requires --output/--dest.' });
-    }
-    return;
-  }
+const isCliCommand = (value: string): value is CliCommand =>
+  SUPPORTED_COMMANDS.some((command) => command === value);
 
-  if (command === 'extract' || command === 'normalize') {
-    if (!values.input) {
-      issues.push({ code: 'REQUIRED', message: `${command} requires --input.` });
-    }
-    if (!values.output) {
-      issues.push({ code: 'REQUIRED', message: `${command} requires --output.` });
-    }
-    return;
-  }
-
-  if (!values.input) {
-    issues.push({ code: 'REQUIRED', message: `${command} requires --input.` });
+const isArchiveFormat = (value: string): value is ArchiveFormat => {
+  switch (value) {
+    case 'zip':
+    case 'tar':
+    case 'gz':
+    case 'tgz':
+    case 'tar.gz':
+    case 'bz2':
+    case 'tar.bz2':
+    case 'zst':
+    case 'br':
+    case 'tar.zst':
+    case 'tar.br':
+    case 'xz':
+    case 'tar.xz':
+      return true;
+    default:
+      return false;
   }
 };
 
-const toOptionalString = (value: unknown): string | undefined => {
-  return typeof value === 'string' ? value : undefined;
-};
-
-const toStringArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return [];
+const isArchiveWriterFormat = (
+  value: string
+): value is ArchiveWriterFormat => {
+  switch (value) {
+    case 'zip':
+    case 'tar':
+    case 'tgz':
+    case 'tar.gz':
+    case 'tar.zst':
+    case 'tar.br':
+      return true;
+    default:
+      return false;
   }
-  return value.filter((item): item is string => typeof item === 'string');
 };
 
-const toOptionalNumber = (value: unknown): number | undefined => {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+const isSafetyProfile = (value: string): value is SafetyProfile => {
+  switch (value) {
+    case 'compatible':
+    case 'strict':
+    case 'untrusted':
+      return true;
+    default:
+      return false;
+  }
 };
+
+const failure = (
+  useJsonOutput: boolean,
+  issues: CliIssue[]
+): ParsedCliArgs => ({
+  success: false,
+  useJsonOutput,
+  issues
+});

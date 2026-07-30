@@ -17,7 +17,7 @@ Archive inputs can control entry names, entry types, compressed sizes, uncompres
 
 For archives from users, uploads, build systems, package registries, URLs, or other external producers:
 
-1. use `profile: "strict"` or `profile: "agent"`;
+1. use `safetyProfile: "strict"` or `safetyProfile: "untrusted"`;
 2. set reader limits and extraction materialization limits for the application budget;
 3. extract into a new staging directory beneath a trusted parent;
 4. keep the staging path free of pre-existing symlinked components;
@@ -26,7 +26,7 @@ For archives from users, uploads, build systems, package registries, URLs, or ot
 7. keep symlink extraction disabled unless the archive layout and destination are controlled;
 8. handle both `DirArchiverError` and non-package operational errors.
 
-Strict `extract()` performs its own pre-extraction audit. A separate `audit()` call is useful when the application needs to inspect or approve a report before extraction. Both API and CLI callers must inspect `report.ok`; the CLI audit command can exit `0` with `ok: false`.
+`extract()` performs its own pre-extraction audit. A separate `audit()` call is useful when the application needs to inspect or approve a report before extraction. Both API and CLI callers must inspect `report.isSafe`; the CLI audit command can exit `0` with `isSafe: false`.
 
 Extraction is not transactional. It creates the destination, replaces matching files, and can leave completed entries after a later error.
 

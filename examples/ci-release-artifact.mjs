@@ -1,17 +1,7 @@
-/**
- * Goal: Produce a release artifact ZIP and print a machine-readable summary for CI.
- * Prereqs:
- * - Run from repo root after `npm run build`.
- * Run:
- * - `node examples/ci-release-artifact.mjs`
- * Expected output:
- * - JSON object with `{ ok: true, artifact, format, entryCount }`.
- * Safety notes:
- * - Uses temporary local files only; no network calls.
- */
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { detect, write } from "../dist/index.js";
 
 function makeBuildOutput(root) {
@@ -33,11 +23,9 @@ export async function run() {
     });
     const detectResult = await detect(artifact);
     const summary = {
-      ok: true,
       artifact,
       format: detectResult.format,
       entryCount: writeResult.entryCount,
-      wrappedDirectoryCodec: writeResult.wrappedDirectoryCodec,
     };
     console.log(JSON.stringify(summary, null, 2));
     return summary;
@@ -46,6 +34,9 @@ export async function run() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] !== undefined
+  && import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await run();
 }
