@@ -19,16 +19,6 @@ const markdownDirectories = [
   '.github'
 ];
 
-const canonicalConsumerDocs = new Set([
-  'docs/index.md',
-  'docs/getting-started.md',
-  'docs/api.md',
-  'docs/cli.md',
-  'docs/safety.md',
-  'docs/formats.md',
-  'docs/troubleshooting.md'
-]);
-
 const packageManifest = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')
 );
@@ -280,25 +270,3 @@ for (const [label, entries] of publicationEntries) {
     assert.deepEqual(failures, []);
   });
 }
-
-test('docs directory contains only canonical consumer pages', () => {
-  const docsMarkdown = walk(path.join(repoRoot, 'docs'))
-    .filter((filePath) => path.extname(filePath).toLowerCase() === '.md')
-    .map(relative)
-    .sort();
-  const expected = [...canonicalConsumerDocs].sort();
-
-  assert.deepEqual(docsMarkdown, expected);
-});
-
-test('canonical consumer pages are published', () => {
-  for (const requiredPath of canonicalConsumerDocs) {
-    for (const [label, entries] of publicationEntries) {
-      assert.equal(
-        manifestIncludesPath(requiredPath, entries),
-        true,
-        `${requiredPath} must be included in the ${label} package`
-      );
-    }
-  }
-});

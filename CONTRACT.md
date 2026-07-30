@@ -139,4 +139,6 @@ Human-readable output is not a stable machine interface. See the [CLI guide](doc
 
 ## Compatibility checks
 
-`test/api-snapshot.test.mjs` compares public exports with `test/fixtures/api-surface.v3.json`. Intentional export changes update both the snapshot and this contract.
+Public operations, error serialization, and TypeScript signatures are covered
+by direct behavior and type tests. Packed-package tests exercise the installed
+API in Node.js, Deno, and Bun.

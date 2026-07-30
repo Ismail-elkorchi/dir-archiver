@@ -4,7 +4,15 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { audit, detect, extract, list, normalize, write } from '../dist/index.js';
+import {
+  audit,
+  detect,
+  DirArchiverError,
+  extract,
+  list,
+  normalize,
+  write
+} from '../dist/index.js';
 
 const removeDir = (dirPath) => {
   rmSync(dirPath, { recursive: true, force: true });
@@ -67,6 +75,24 @@ test('directory + single-file codec wraps into tar.<codec>', async () => {
     const result = await write(source, archive, { format: 'gz' });
     assert.equal(result.format, 'tar.gz');
     assert.equal(result.wrappedDirectoryCodec, true);
+  } finally {
+    removeDir(tmpRoot);
+  }
+});
+
+test('unsupported write formats fail with the public error code', async () => {
+  const tmpRoot = mkdtempSync(path.join(tmpdir(), 'dir-archiver-v3-'));
+  try {
+    const source = path.join(tmpRoot, 'source');
+    mkdirSync(source);
+    writeFileSync(path.join(source, 'hello.txt'), 'hello');
+
+    await assert.rejects(
+      write(source, path.join(tmpRoot, 'archive.xz'), { format: 'xz' }),
+      (error) =>
+        error instanceof DirArchiverError
+        && error.code === 'DIRARCHIVER_UNSUPPORTED_ENTRY'
+    );
   } finally {
     removeDir(tmpRoot);
   }
