@@ -2,6 +2,7 @@ import {
   type ArchiveInput,
   type ArchiveWriterFormat,
   type DetectResult,
+  type DirArchiverErrorCode,
   type DirArchiverErrorJson,
   type ExtractOptions,
   type ExtractResult,
@@ -47,9 +48,12 @@ const writeFormat: ArchiveWriterFormat = 'tar.zst';
 const errorJson: DirArchiverErrorJson = {
   schemaVersion: '1',
   name: 'DirArchiverError',
-  code: 'DIRARCHIVER_USAGE',
-  message: 'Invalid command.'
+  code: 'DIRARCHIVER_RESOURCE_LIMIT',
+  message: 'Configured byte limit exceeded.'
 };
+
+// @ts-expect-error CLI usage diagnostics are not package error codes
+const removedUsageCode: DirArchiverErrorCode = 'DIRARCHIVER_USAGE';
 
 const exactReadOptions = {
   safetyProfile: 'strict'
@@ -73,6 +77,7 @@ const ambiguousExtractLimit: ExtractOptions = { maxEntryBytes: 1 };
 void safetyProfile;
 void writeFormat;
 void errorJson;
+void removedUsageCode;
 void exactReadOptions;
 void oldProfile;
 void rawWriteFormat;

@@ -7,6 +7,7 @@
 | `DIRARCHIVER_RESOURCE_LIMIT` | Inspect the archive and application budget before raising a limit. |
 | `DIRARCHIVER_UNSUPPORTED_ENTRY` | Inspect `audit().issues`; the profile, a link, or an entry kind was rejected. |
 | `DIRARCHIVER_NORMALIZE_UNSUPPORTED` | The selected reader cannot normalize that input. |
+| Exit-2 stderr is not JSON | Invalid CLI invocations always use terminal diagnostics. |
 | Exit-1 stderr is not JSON | Native and dependency failures are not relabeled. Treat stderr as diagnostics. |
 | A partial destination remains | Remove the staging destination and retry with a new one. |
 | Empty directories disappeared | `write()` emits file entries only. |

@@ -67,6 +67,8 @@ raw-compression formats.
 ## CLI
 
 ```sh
+npx dir-archiver --help
+
 npx dir-archiver write \
   --source ./project \
   --output ./artifacts/project.zip \
@@ -81,9 +83,14 @@ npx dir-archiver extract \
   --json
 ```
 
-Every option occurrence has one value. Repeat `--exclude` for repeated
-exclusions. Unknown flags, duplicate scalar options, irrelevant options, and
-arguments after `--` are usage errors.
+Every value-taking option occurrence has one value. Repeat `--exclude` for
+repeated exclusions. Unknown flags, duplicate scalar options, irrelevant
+options, and arguments after `--` are usage errors.
+
+The command comes before its command-specific options. `--json` controls
+successful operation results; invalid invocations always write concise
+diagnostics to stderr and exit with status `2`. Use `-h` or `--help` for root
+or command help, and `--version` for the installed version.
 
 ## Operational limits
 

@@ -1,6 +1,6 @@
 {
   "name": "@ismail-elkorchi/dir-archiver",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
@@ -28,8 +28,7 @@
       "test/**",
       "node_modules/**",
       ".github/**",
-      "src/cli.ts",
-      "src/cli-args.ts"
+      "src/cli.ts"
     ]
   }
 }

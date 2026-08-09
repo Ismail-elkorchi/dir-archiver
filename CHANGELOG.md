@@ -1,33 +1,23 @@
 # Changes to Dir Archiver
 
-## Unreleased
+## 4.0.0 - 2026-08-09
 
-* Migrate to Bytefold 0.9 and argv-flags 2.
-* Replace runtime subpath dispatch with Bytefold's conditional root entrypoint.
-* Remove obsolete runtime adapters from source and packed build output.
-* Remove the live-reader `open()` API, default export, CLI `open` command, and unused public types.
-* Replace legacy safety-profile names and fields with `safetyProfile: "compatible" | "strict" | "untrusted"`.
-* Replace loose placeholder types and TypeScript assertions with exact dependency contracts.
-* Enable additional TypeScript checks for unused, unreachable, side-effect-only, and non-erasable code.
-* Restrict writes to actual archive writer formats and remove ignored options and result fields.
-* Use Bytefold's `ArchiveInput` and `ArchiveWriterFormat` names directly, clarify public byte and count field names, and report materialized symlink counts.
-* Reject malformed exclusions and destructive writes through filesystem aliases.
-* Release destination file handles after normalization failures.
-* Compile the CLI grammar once, reject duplicates and irrelevant options, preserve indexed parser diagnostics, remove alternative long spellings and implicit command inference, and retain only `-s`, `-i`, and `-o` as short forms.
-* Audit every extraction before creating its destination and use `isSafe` report semantics.
-* Collect source entries before opening the destination so an archive inside its source is not included in itself.
-* Abort archive writers after source or entry failures so partial output is released without being finalized.
-* Reject parent-traversing exclusions before normalization, preserve exact trailing-separator directory exclusions, and handle root-resolving entries and `.` symlink targets deterministically.
-* Document migration steps in `BREAKING_CHANGES.md`.
-* Consolidate consumer documentation around the README and focused API, CLI, safety, formats, and troubleshooting guides.
-* Correct Deno installation, CLI audit-gate, output-stream, runtime-format, alias, symlink, extraction, write, normalize, and error-handling guidance against the implementation and tests.
-* Replace Unix-only onboarding commands with a self-contained cross-platform example for Node.js, Deno, and Bun consumers.
-* Remove duplicated recipe, maintainer, and compatibility-page documentation so `docs/` contains only the canonical consumer guides.
-* Publish only the canonical consumer guides in npm and JSR packages.
-* Align exported option and error JSDoc with the new public behavior.
-* Validate local Markdown links, publication boundaries, public TypeScript signatures, and packed-package consumption.
-* Remove obsolete tests and duplicated repository automation while preserving behavior, security coverage, and macOS and Windows filesystem testing.
-* Update the development toolchain and GitHub Actions while retaining TypeScript 6 and the supported runtime floors.
+* Migrate archive operations to Bytefold 0.9 and define the CLI with Clivoke.
+* Remove the default export, live-reader `open()` API, CLI `open` command, and
+  unused public types and options.
+* Adopt Bytefold's `ArchiveInput`, `ArchiveWriterFormat`, report, safety-profile,
+  byte-limit, and result contracts directly.
+* Restrict writes to supported archive writer formats and report materialized
+  symlink counts explicitly.
+* Add conventional grammar-aware `-h`/`--help` and `--version` behavior.
+* Tighten CLI parsing around duplicate and irrelevant options, repeated values,
+  command-local option placement, and post-`--` arguments.
+* Audit extraction before creating its destination, reject unsafe filesystem
+  aliases and exclusions, and release output resources after failures.
+* Prevent destinations inside source trees from being archived into themselves
+  and abort partial archive writers after source failures.
+
+See `BREAKING_CHANGES.md` for the complete migration guide.
 
 ## 3.0.2 (June 19, 2026)
 

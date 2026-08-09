@@ -17,23 +17,39 @@ const cleanup = (target) => {
   rmSync(target, { recursive: true, force: true });
 };
 
-test('unknown flag returns usage exit code and UNKNOWN_FLAG issue', () => {
-  const result = runCli(['detect', '--input', 'archive.zip', '--unknown', '1', '--json']);
+const assertUsageFailure = (result, codes) => {
   assert.equal(result.status, 2);
-  const payload = JSON.parse(result.stdout.trim());
-  const issue = payload.issues.find((candidate) => candidate.code === 'UNKNOWN_FLAG');
-  assert.deepEqual(
-    {
-      argument: issue.argument,
-      flag: issue.flag,
-      index: issue.index
-    },
-    {
-      argument: '--unknown',
-      flag: '--unknown',
-      index: 3
-    }
-  );
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /^Usage: dir-archiver/u);
+  for (const code of codes) {
+    assert.match(result.stderr, new RegExp(`^${code}:`, 'mu'));
+  }
+};
+
+test('invalid invocations use terminal diagnostics even when --json is present', () => {
+  const result = runCli(['detect', '--input', 'archive.zip', '--unknown', '1', '--json']);
+  assertUsageFailure(result, ['CLI_UNKNOWN_FLAG', 'CLI_UNEXPECTED_POSITIONAL']);
+  assert.match(result.stderr, /^Usage: dir-archiver detect \[options\]$/mu);
+  assert.match(result.stderr, /^(?: {2})-i, --input <archive>(?: {2})Input archive path or URL\.$/mu);
+  assert.match(result.stderr, /Unknown flag: --unknown\. \[argv=3\]/u);
+});
+
+test('help and version are successful grammar-aware actions', () => {
+  for (const args of [['-h'], ['--help'], ['detect', '--help']]) {
+    const result = runCli(args);
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, '');
+    assert.match(result.stdout, /^Usage: dir-archiver/u);
+    assert.match(result.stdout, /-h, --help {2}Show help\./u);
+  }
+
+  const version = runCli(['--version']);
+  assert.equal(version.status, 0);
+  assert.equal(version.stderr, '');
+  assert.equal(version.stdout, 'dir-archiver 4.0.0\n');
+
+  const afterTerminator = runCli(['detect', '--input', 'archive.zip', '--', '--help']);
+  assertUsageFailure(afterTerminator, ['CLI_PASSTHROUGH_ARGUMENTS_NOT_ACCEPTED']);
 });
 
 test('write and extract commands succeed in JSON mode', () => {
@@ -44,7 +60,7 @@ test('write and extract commands succeed in JSON mode', () => {
     writeFileSync(path.join(source, 'hello.txt'), 'hello');
 
     const archive = path.join(tmpRoot, 'archive.zip');
-    const writeResult = runCli(['write', '-s', source, '-o', archive, '--json']);
+    const writeResult = runCli(['--json', 'write', '-s', source, '-o', archive]);
     assert.equal(writeResult.status, 0);
 
     const extracted = path.join(tmpRoot, 'out');
@@ -79,12 +95,7 @@ test('duplicate scalar options fail instead of silently selecting a value', () =
     'second.zip',
     '--json'
   ]);
-  assert.equal(result.status, 2);
-  const payload = JSON.parse(result.stdout.trim());
-  assert.equal(
-    payload.issues.some((issue) => issue.code === 'DUPLICATE_OPTION'),
-    true
-  );
+  assertUsageFailure(result, ['REPEATED_OPTION']);
 });
 
 test('legacy aliases and implicit write invocation are not accepted', () => {
@@ -96,12 +107,8 @@ test('legacy aliases and implicit write invocation are not accepted', () => {
     'archive.zip',
     '--json'
   ]);
-  assert.equal(aliasResult.status, 2);
-  const aliasPayload = JSON.parse(aliasResult.stdout.trim());
-  assert.equal(
-    aliasPayload.issues.filter((issue) => issue.code === 'UNKNOWN_FLAG').length,
-    2
-  );
+  assertUsageFailure(aliasResult, ['MISSING_REQUIRED_OPTION', 'CLI_UNKNOWN_FLAG']);
+  assert.equal(aliasResult.stderr.match(/^CLI_UNKNOWN_FLAG:/gmu)?.length, 2);
 
   const implicitResult = runCli([
     '--source',
@@ -110,12 +117,7 @@ test('legacy aliases and implicit write invocation are not accepted', () => {
     'archive.zip',
     '--json'
   ]);
-  assert.equal(implicitResult.status, 2);
-  const implicitPayload = JSON.parse(implicitResult.stdout.trim());
-  assert.equal(
-    implicitPayload.issues.some((issue) => issue.code === 'MISSING_COMMAND'),
-    true
-  );
+  assertUsageFailure(implicitResult, ['CLI_UNKNOWN_FLAG']);
 });
 
 test('invalid safety profiles and post-double-dash arguments fail without fallback values', () => {
@@ -127,13 +129,7 @@ test('invalid safety profiles and post-double-dash arguments fail without fallba
     'agent',
     '--json'
   ]);
-  assert.equal(profileResult.status, 2);
-  const profilePayload = JSON.parse(profileResult.stdout.trim());
-  assert.equal(
-    profilePayload.issues.some((issue) => issue.code === 'INVALID_OPTION_VALUE'),
-    true
-  );
-  assert.equal(Object.hasOwn(profilePayload, 'safetyProfile'), false);
+  assertUsageFailure(profileResult, ['INVALID_OPTION_VALUE']);
 
   const boundaryResult = runCli([
     'detect',
@@ -143,14 +139,7 @@ test('invalid safety profiles and post-double-dash arguments fail without fallba
     '--',
     'extra'
   ]);
-  assert.equal(boundaryResult.status, 2);
-  const boundaryPayload = JSON.parse(boundaryResult.stdout.trim());
-  assert.equal(
-    boundaryPayload.issues.some(
-      (issue) => issue.code === 'UNEXPECTED_ARGUMENT_AFTER_DOUBLE_DASH'
-    ),
-    true
-  );
+  assertUsageFailure(boundaryResult, ['CLI_PASSTHROUGH_ARGUMENTS_NOT_ACCEPTED']);
 });
 
 test('options that do not belong to a command are rejected', () => {
@@ -161,10 +150,35 @@ test('options that do not belong to a command are rejected', () => {
     '--allow-symlinks',
     '--json'
   ]);
-  assert.equal(result.status, 2);
-  const payload = JSON.parse(result.stdout.trim());
-  assert.equal(
-    payload.issues.some((issue) => issue.code === 'OPTION_NOT_ALLOWED'),
-    true
-  );
+  assertUsageFailure(result, ['CLI_UNKNOWN_FLAG']);
+});
+
+test('command-local options must follow their command', () => {
+  const result = runCli(['--input', 'archive.zip', 'detect', '--json']);
+  assertUsageFailure(result, ['CLI_UNKNOWN_FLAG']);
+  assert.match(result.stderr, /Unknown flag: --input\. \[argv=0\]/u);
+});
+
+test('command definitions enforce command-specific values and numeric bounds', () => {
+  const writeFormat = runCli([
+    'write',
+    '--source',
+    'source',
+    '--output',
+    'archive.xz',
+    '--format',
+    'xz'
+  ]);
+  assertUsageFailure(writeFormat, ['INVALID_OPTION_VALUE']);
+
+  const negativeLimit = runCli([
+    'extract',
+    '--input',
+    'archive.zip',
+    '--output',
+    'out',
+    '--max-extracted-file-bytes',
+    '-1'
+  ]);
+  assertUsageFailure(negativeLimit, ['INVALID_OPTION_VALUE']);
 });

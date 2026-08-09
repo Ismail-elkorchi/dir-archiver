@@ -9,9 +9,15 @@ const run = async () => {
 
   const version = tagName.slice(1);
   const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+  const jsrJson = JSON.parse(await readFile('jsr.json', 'utf8'));
   if (packageJson.version !== version) {
     throw new Error(
       `release-gate: tag/version mismatch (tag=${version}, package.json=${packageJson.version})`
+    );
+  }
+  if (jsrJson.version !== version) {
+    throw new Error(
+      `release-gate: tag/version mismatch (tag=${version}, jsr.json=${jsrJson.version})`
     );
   }
 
@@ -25,7 +31,7 @@ const run = async () => {
   }
 
   process.stdout.write(
-    `release-gate: ok tag=${tagName} package=${packageJson.version} changelog=present\n`
+    `release-gate: ok tag=${tagName} package=${packageJson.version} jsr=${jsrJson.version} changelog=present\n`
   );
 };
 

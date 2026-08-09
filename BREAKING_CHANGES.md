@@ -5,7 +5,8 @@
 ### Dependencies
 
 - Bytefold now comes from its single root entrypoint.
-- argv-flags 2 powers the CLI through a reusable compiled parser.
+- Clivoke owns the compiled command definition, validation, and typed command
+  selection.
 
 ### API
 
@@ -50,6 +51,12 @@ Bytefold reports no longer contain `schemaVersion`.
 - Reject duplicate scalar options and options irrelevant to the command.
 - Require one `--exclude` occurrence for each exclusion.
 - Reject arguments after `--`.
+- Require command-local options to follow their command.
+- Emit invalid-invocation diagnostics as text on stderr even when `--json` is
+  present; JSON output is reserved for successful invocations.
+- Remove the unused `DIRARCHIVER_USAGE` package error code. CLI diagnostics
+  have their own codes and are not `DirArchiverError` instances.
+- Add successful `-h`/`--help` and `--version` actions.
 
 ### Migration example
 

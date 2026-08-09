@@ -1,6 +1,6 @@
 {
   "name": "dir-archiver",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "description": "Create, inspect, audit, normalize, and extract archives across Node.js, Deno, and Bun.",
   "license": "MIT",
   "type": "module",
@@ -50,7 +50,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ismail-elkorchi/dir-archiver"
+    "url": "git+https://github.com/Ismail-elkorchi/dir-archiver.git"
   },
   "author": {
     "name": "Ismail El Korchi",
@@ -68,7 +68,8 @@
     "lint": "npm run typecheck && npm run typecheck:public && eslint . --max-warnings=0",
     "test": "npm run build && node --test test/public-api.test.mjs test/operations.test.mjs test/cli.test.mjs test/docs-links.test.mjs test/security.test.mjs",
     "test:package": "node ./test/package-consumers.mjs",
-    "check": "npm run lint && npm run test && npm run examples:run && npm run test:package",
+    "check:jsr": "deno publish --dry-run --allow-dirty",
+    "check": "npm run lint && npm run test && npm run examples:run && npm run test:package && npm run check:jsr",
     "prepack": "npm run build"
   },
   "engines": {
@@ -76,11 +77,11 @@
   },
   "dependencies": {
     "@ismail-elkorchi/bytefold": "^0.9.0",
-    "argv-flags": "^2.0.0"
+    "clivoke": "^0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.1.2",
+    "@types/node": "^24.13.3",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "eslint": "^10.8.0",

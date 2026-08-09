@@ -186,7 +186,6 @@ Stable package codes are:
 - `DIRARCHIVER_UNSUPPORTED_ENTRY`
 - `DIRARCHIVER_RESOURCE_LIMIT`
 - `DIRARCHIVER_NORMALIZE_UNSUPPORTED`
-- `DIRARCHIVER_USAGE`
 
 `DirArchiverError.toJSON()` returns schema version `1`, name, code, message,
 and optional hint and context.
