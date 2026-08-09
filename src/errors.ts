@@ -9,9 +9,6 @@
  *   materialization byte limit.
  * - `DIRARCHIVER_NORMALIZE_UNSUPPORTED`: the opened archive reader does not
  *   expose normalization.
- * - `DIRARCHIVER_USAGE`: CLI invocation is missing required flags or uses
- *   unsupported values.
- *
  * Not every operational failure is converted into this code space. Consumers
  * must also handle native filesystem, network, cancellation, and dependency
  * errors.
@@ -20,8 +17,7 @@ export type DirArchiverErrorCode =
   | 'DIRARCHIVER_PATH_TRAVERSAL'
   | 'DIRARCHIVER_UNSUPPORTED_ENTRY'
   | 'DIRARCHIVER_RESOURCE_LIMIT'
-  | 'DIRARCHIVER_NORMALIZE_UNSUPPORTED'
-  | 'DIRARCHIVER_USAGE';
+  | 'DIRARCHIVER_NORMALIZE_UNSUPPORTED';
 
 /**
  * Stable JSON payload emitted by `DirArchiverError.toJSON()`.

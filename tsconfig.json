@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "lib": ["ES2024", "DOM"],
     "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
     "types": ["node"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

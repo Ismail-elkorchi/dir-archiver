@@ -153,10 +153,12 @@ try {
     path.join(repositoryRoot, 'node_modules', '@ismail-elkorchi', 'bytefold'),
     true
   );
-  const argvFlagsTarball = pack(
-    path.join(repositoryRoot, 'node_modules', 'argv-flags'),
+  const cliCoreTarball = pack(
+    path.join(repositoryRoot, 'node_modules', '@ismail-elkorchi', 'cli-core'),
     true
   );
+  const argvFlagsTarball = pack(path.join(repositoryRoot, 'node_modules', 'argv-flags'), true);
+  const clivokeTarball = pack(path.join(repositoryRoot, 'node_modules', 'clivoke'), true);
   const dirArchiverTarball = pack(repositoryRoot);
 
   writeFileSync(
@@ -170,7 +172,9 @@ try {
       },
       overrides: {
         '@ismail-elkorchi/bytefold': `file:${bytefoldTarball}`,
-        'argv-flags': `file:${argvFlagsTarball}`
+        '@ismail-elkorchi/cli-core': `file:${cliCoreTarball}`,
+        'argv-flags': `file:${argvFlagsTarball}`,
+        'clivoke': `file:${clivokeTarball}`
       }
     }, null, 2)}\n`
   );
@@ -255,6 +259,64 @@ try {
     { DENO_NO_UPDATE_CHECK: '1' }
   );
   run('bun', ['run', '--no-install', consumerPath, 'bun'], consumerDirectory);
+
+  const runInstalledCli = (arguments_) => spawnSync(npmCommand, [
+    'exec',
+    '--offline',
+    '--',
+    'dir-archiver',
+    ...arguments_
+  ], {
+    cwd: consumerDirectory,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      npm_config_offline: 'true',
+      npm_config_update_notifier: 'false'
+    }
+  });
+
+  const versionResult = runInstalledCli(['--version']);
+  if (
+    versionResult.status !== 0
+    || versionResult.stderr !== ''
+    || versionResult.stdout.trim() !== 'dir-archiver 4.0.0'
+  ) {
+    throw new Error('Packed CLI version action did not run through the installed bin.');
+  }
+
+  const cliSource = path.join(consumerDirectory, 'cli-source');
+  const cliArchive = path.join(consumerDirectory, 'cli-archive.zip');
+  mkdirSync(cliSource);
+  writeFileSync(path.join(cliSource, 'hello.txt'), 'packed cli');
+  const writeResult = runInstalledCli([
+    '--json',
+    'write',
+    '--source',
+    cliSource,
+    '--output',
+    cliArchive,
+    '--format',
+    'zip'
+  ]);
+  if (
+    writeResult.status !== 0
+    || writeResult.stderr !== ''
+    || JSON.parse(writeResult.stdout).format !== 'zip'
+    || !existsSync(cliArchive)
+  ) {
+    throw new Error('Packed CLI could not create an archive through the installed bin.');
+  }
+
+  const cliResult = runInstalledCli(['detect']);
+  if (
+    cliResult.status !== 2
+    || cliResult.stdout !== ''
+    || !cliResult.stderr.includes('MISSING_REQUIRED_OPTION')
+  ) {
+    throw new Error('Packed CLI did not report an invalid invocation through the installed bin.');
+  }
 
   process.stdout.write('packed consumers passed: Node.js, Deno, Bun\n');
 } finally {

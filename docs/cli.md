@@ -17,18 +17,21 @@ npx dir-archiver <command> [options]
 | `extract` | `--input`, `--output` | Audit and extract. |
 | `normalize` | `--input`, `--output` | Write normalized output. |
 
-A command is always required. There is no implicit write mode.
+Operations require a command. Root help and version actions do not. There is no
+implicit write mode.
 
 ## Options
 
 | Option | Commands | Meaning |
 | --- | --- | --- |
+| `--help`, `-h` | all | Show root or selected-command help. |
+| `--version` | all | Show the installed version. |
 | `--input <archive>`, `-i <archive>` | read commands | Input path or URL. |
 | `--source <path>`, `-s <path>` | `write` | Source file or directory. |
 | `--output <path>`, `-o <path>` | `write`, `extract`, `normalize` | Destination path. |
 | `--format <format>` | all | Force read or write format. |
 | `--safety-profile <profile>` | read commands | `compatible`, `strict`, or `untrusted`. |
-| `--json` | all | Emit machine-readable output. |
+| `--json` | all | Emit machine-readable operation results. |
 | `--include-base-directory` | `write` | Prefix directory entries with the source name. |
 | `--follow-symlinks` | `write` | Follow source-tree symlinks. |
 | `--exclude <path>` | `write` | Exclude one basename or relative path; repeat as needed. |
@@ -43,6 +46,14 @@ and `tar.xz`.
 Boolean options do not consume a following token. Scalar duplicates, unknown
 flags, unsupported values, irrelevant options, extra positionals, and
 arguments after `--` are errors.
+
+Command-specific options must follow their command. The global `--json` option
+may appear before or after the command, but it affects successful output only.
+Invalid invocations always use terminal diagnostics on stderr.
+
+Help and version actions write to stdout and exit successfully. They are
+recognized by the same grammar as other options, so a help-looking token used
+as an option value or placed after `--` is not treated as a help request.
 
 Only the frequently used path options have short forms. Alternative long
 spellings such as `--src` and `--dest` are not accepted.
@@ -99,6 +110,7 @@ node check-audit.mjs
 | `1` | Operational failure. |
 | `2` | Invalid invocation. |
 
-With `--json`, success and usage payloads go to stdout. Known
-`DirArchiverError` payloads go to stderr. Other operational failures can emit
-plain diagnostic text on stderr.
+With `--json`, successful results go to stdout. Invalid invocations use concise
+text on stderr regardless of output mode. Known `DirArchiverError` payloads go
+to stderr. Other operational failures can emit plain diagnostic text on
+stderr.

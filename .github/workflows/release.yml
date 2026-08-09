@@ -40,31 +40,9 @@ jobs:
       - name: Verify tag, version, and changelog
         run: node ./scripts/release-gate.mjs
 
-  github:
-    name: Publish GitHub release
-    needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          if ! gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release create "${TAG_NAME}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "${TAG_NAME#v}" \
-              --generate-notes
-          fi
-
   npm:
     name: Publish npm package
-    needs:
-      - verify
-      - github
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -86,9 +64,7 @@ jobs:
 
   jsr:
     name: Publish JSR package
-    needs:
-      - verify
-      - github
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -103,3 +79,25 @@ jobs:
           deno-version: 2.9.0
       - name: Publish
         run: deno publish
+
+  github:
+    name: Publish GitHub release
+    needs:
+      - npm
+      - jsr
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${TAG_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${TAG_NAME#v}" \
+              --generate-notes
+          fi
