@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const run = async () => {
-  const tagInput = process.env.GITHUB_REF_NAME ?? process.argv[2] ?? '';
+  const tagInput = process.argv[2] ?? process.env.GITHUB_REF_NAME ?? '';
   const tagName = normalizeTag(tagInput);
   if (!tagName.startsWith('v')) {
     throw new Error(`release-gate: expected v-prefixed tag, received "${tagName}"`);
