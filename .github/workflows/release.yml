@@ -18,8 +18,6 @@ jobs:
     name: Verify release
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    outputs:
-      release_tag: ${{ steps.release.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,7 +39,6 @@ jobs:
       - name: Check
         run: npm run check
       - name: Verify tag, version, and changelog
-        id: release
         shell: bash
         run: |
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
@@ -50,7 +47,6 @@ jobs:
             tag="v$(node --print "require('./package.json').version")"
           fi
           node ./scripts/release-gate.mjs "${tag}"
-          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
   npm:
     name: Publish npm package
@@ -117,14 +113,22 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ needs.verify.outputs.release_tag }}
+        shell: bash
         run: |
-          if ! gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release create "${TAG_NAME}" \
+          tag="v$(node --print "require('./package.json').version")"
+          if ! gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${tag}" \
               --repo "${GITHUB_REPOSITORY}" \
-              --title "${TAG_NAME#v}" \
+              --title "${tag#v}" \
               --generate-notes
           fi
