@@ -41,12 +41,11 @@ jobs:
       - name: Verify tag, version, and changelog
         shell: bash
         run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            tag="${GITHUB_REF_NAME}"
-          else
-            tag="v$(node --print "require('./package.json').version")"
+          if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
+            echo "Release publication requires a tag ref; received ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}." >&2
+            exit 1
           fi
-          node ./scripts/release-gate.mjs "${tag}"
+          node ./scripts/release-gate.mjs "${GITHUB_REF_NAME}"
 
   npm:
     name: Publish npm package
