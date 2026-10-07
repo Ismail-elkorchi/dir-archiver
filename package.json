@@ -77,7 +77,7 @@
   },
   "dependencies": {
     "@ismail-elkorchi/bytefold": "^0.9.0",
-    "clivoke": "git+https://github.com/Ismail-elkorchi/clivoke.git#a567dc78c3004a43d97b82517910a731c71ce081"
+    "clivoke": "git+https://github.com/Ismail-elkorchi/clivoke.git#2577893675f1a14e91ca0a507550e8be2677da99"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
