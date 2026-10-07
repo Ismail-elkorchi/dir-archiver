@@ -1,5 +1,20 @@
 # Breaking changes
 
+## Unreleased
+
+### CLI presentation
+
+- A no-argument invocation now prints root help and exits 0 instead of reporting
+  a missing subcommand. `help` and `help <command>` are help actions.
+- Help text now includes requiredness, defaults, and finite choices. Scripts
+  should use `--json` operation results rather than parsing terminal help.
+- Malformed global options retain command-specific diagnostic context whenever
+  the grammar can identify the command; error details may therefore be more
+  specific than before.
+
+Success JSON, known domain-error envelopes, and operation/usage exit codes
+remain unchanged.
+
 ## 4.0.0
 
 ### Dependencies

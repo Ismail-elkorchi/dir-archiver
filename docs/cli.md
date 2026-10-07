@@ -18,7 +18,9 @@ npx dir-archiver <command> [options]
 | `normalize` | `--input`, `--output` | Write normalized output. |
 
 Operations require a command. Root help and version actions do not. There is no
-implicit write mode.
+implicit write mode. With no arguments, the CLI shows root help.
+`help` and `help <command>` also show help without running an operation.
+Help includes required options, defaults, and accepted finite choices.
 
 ## Options
 
@@ -49,7 +51,9 @@ arguments after `--` are errors.
 
 Command-specific options must follow their command. The global `--json` option
 may appear before or after the command, but it affects successful output only.
-Invalid invocations always use terminal diagnostics on stderr.
+Invalid invocations always use terminal diagnostics on stderr. Malformed global
+options retain the selected command's usage and option scope when the grammar
+can still identify that command.
 
 Help and version actions write to stdout and exit successfully. They are
 recognized by the same grammar as other options, so a help-looking token used
