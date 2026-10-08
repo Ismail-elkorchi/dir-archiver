@@ -1,5 +1,15 @@
 # Changes to Dir Archiver
 
+## Unreleased
+
+* Use Clivoke's shared command runner with application-owned output and error
+  rendering, preserving success JSON, domain error envelopes, and exit codes.
+* Keep command-local diagnostics accurate when a global option is malformed.
+* Show required options, defaults, and accepted choices in help; support
+  `help <command>` and root help when no arguments are supplied.
+* Cover control-looking filenames, command-scoped failures, and operational
+  error output in CLI regression tests.
+
 ## 4.0.0 - 2026-08-09
 
 * Migrate archive operations to Bytefold 0.9 and define the CLI with Clivoke.

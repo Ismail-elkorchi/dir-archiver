@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
+import { format } from 'node:util';
 import {
   createCli,
+  createProcessCliHost,
   createCliHelp,
   formatCliDiagnostics,
   formatCliHelp,
+  runCliMain,
   value
 } from 'clivoke';
 import packageMetadata from '../package.json' with { type: 'json' };
@@ -185,63 +188,64 @@ const DIR_ARCHIVER_CLI = createCli({
   ]
 });
 
-const run = async (): Promise<number> => {
-  const invocation = DIR_ARCHIVER_CLI.parse({ argv: process.argv.slice(2) });
-  if (invocation.status === 'help') {
-    console.log(formatUsage(invocation.commandPath));
-    return 0;
-  }
-  if (invocation.status === 'version') {
-    console.log(`dir-archiver ${invocation.version}`);
-    return 0;
-  }
-  if (invocation.status === 'invalid') {
-    console.error(formatUsage(invocation.command?.path ?? []));
-    console.error(formatCliDiagnostics(invocation.diagnostics));
-    return 2;
-  }
+const formatUsage = (commandPath: readonly string[]): string => {
+  const help = createCliHelp(DIR_ARCHIVER_CLI, commandPath);
+  if (help === undefined) return 'Usage: dir-archiver <command> [options]';
+  return formatCliHelp(help);
+};
 
-  switch (invocation.commandKey) {
-    case 'dir-archiver write': {
-      const { optionValues } = invocation;
+const formatResult = (asJson: boolean, payload: unknown): string => {
+  return asJson ? JSON.stringify(payload) : format(payload);
+};
+
+await runCliMain({
+  cli: DIR_ARCHIVER_CLI,
+  host: createProcessCliHost(process),
+  context: undefined,
+  renderInvalid: (invocation) => ({
+    stderr: `${formatUsage(invocation.command?.path ?? [])}\n${formatCliDiagnostics(invocation.diagnostics)}`,
+    exitCode: 2
+  }),
+  renderFailure: ({ error }) => ({
+    stderr: error instanceof DirArchiverError
+      ? JSON.stringify(error.toJSON())
+      : error instanceof Error
+        ? error.stack ?? error.message
+        : String(error),
+    exitCode: 1
+  }),
+  handlers: {
+    'dir-archiver write': async ({ invocation: { optionValues } }) => {
       const result = await write(optionValues.source, optionValues.output, {
         ...(optionValues.format === undefined ? {} : { format: optionValues.format }),
         includeBaseDirectory: optionValues.includeBaseDirectory,
         followSymlinks: optionValues.followSymlinks,
         exclude: optionValues.exclude
       });
-      printResult(optionValues.json, result);
-      return 0;
-    }
-    case 'dir-archiver detect': {
-      const { optionValues } = invocation;
+      return { stdout: formatResult(optionValues.json, result) };
+    },
+    'dir-archiver detect': async ({ invocation: { optionValues } }) => {
       const result = await detect(optionValues.input, {
         ...(optionValues.format === undefined ? {} : { format: optionValues.format }),
         safetyProfile: optionValues.safetyProfile
       });
-      printResult(optionValues.json, result);
-      return 0;
-    }
-    case 'dir-archiver list': {
-      const { optionValues } = invocation;
+      return { stdout: formatResult(optionValues.json, result) };
+    },
+    'dir-archiver list': async ({ invocation: { optionValues } }) => {
       const result = await list(optionValues.input, {
         ...(optionValues.format === undefined ? {} : { format: optionValues.format }),
         safetyProfile: optionValues.safetyProfile
       });
-      printResult(optionValues.json, result);
-      return 0;
-    }
-    case 'dir-archiver audit': {
-      const { optionValues } = invocation;
+      return { stdout: formatResult(optionValues.json, result) };
+    },
+    'dir-archiver audit': async ({ invocation: { optionValues } }) => {
       const result = await audit(optionValues.input, {
         ...(optionValues.format === undefined ? {} : { format: optionValues.format }),
         safetyProfile: optionValues.safetyProfile
       });
-      printResult(optionValues.json, result);
-      return 0;
-    }
-    case 'dir-archiver extract': {
-      const { optionValues } = invocation;
+      return { stdout: formatResult(optionValues.json, result) };
+    },
+    'dir-archiver extract': async ({ invocation: { optionValues } }) => {
       const result = await extract(optionValues.input, optionValues.output, {
         ...(optionValues.format === undefined ? {} : { format: optionValues.format }),
         safetyProfile: optionValues.safetyProfile,
@@ -253,49 +257,14 @@ const run = async (): Promise<number> => {
           ? {}
           : { maxTotalExtractedBytes: optionValues.maxTotalExtractedBytes })
       });
-      printResult(optionValues.json, result);
-      return 0;
-    }
-    case 'dir-archiver normalize': {
-      const { optionValues } = invocation;
+      return { stdout: formatResult(optionValues.json, result) };
+    },
+    'dir-archiver normalize': async ({ invocation: { optionValues } }) => {
       const result = await normalize(optionValues.input, optionValues.output, {
         ...(optionValues.format === undefined ? {} : { format: optionValues.format }),
         safetyProfile: optionValues.safetyProfile
       });
-      printResult(optionValues.json, result);
-      return 0;
+      return { stdout: formatResult(optionValues.json, result) };
     }
   }
-};
-
-const formatUsage = (commandPath: readonly string[]): string => {
-  const help = createCliHelp(DIR_ARCHIVER_CLI, commandPath);
-  if (help === undefined) return 'Usage: dir-archiver <command> [options]';
-  return formatCliHelp(help);
-};
-
-const printResult = (asJson: boolean, payload: unknown): void => {
-  if (asJson) {
-    console.log(JSON.stringify(payload));
-    return;
-  }
-  console.log(payload);
-};
-
-void run()
-  .then((exitCode) => {
-    process.exitCode = exitCode;
-  })
-  .catch((error: unknown) => {
-    if (error instanceof DirArchiverError) {
-      console.error(JSON.stringify(error.toJSON()));
-      process.exitCode = 1;
-      return;
-    }
-    if (error instanceof Error) {
-      console.error(error.stack ?? error.message);
-    } else {
-      console.error(String(error));
-    }
-    process.exitCode = 1;
-  });
+});
